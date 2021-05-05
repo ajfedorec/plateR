@@ -1,0 +1,25 @@
+Package: plateR
+Type: Package
+Title: What the Package Does (Title Case)
+Version: 0.1.0
+Authors@R: person("Fedorec", "Alex J H", email = "alexander.fedorec.13@ucl.ac.uk", role = c("aut", "cre"))
+Description: More about what it does (maybe more than one line)
+    Use four spaces when indenting paragraphs within the Description.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+Imports:
+  dplyr,
+  tidyr,
+  ggplot2,
+  imager,
+  scales,
+  rlang,
+  methods,
+  furrr,
+  purrr,
+  future,
+  progressr,
+  foreach,
+  doFuture
+RoxygenNote: 7.1.1
