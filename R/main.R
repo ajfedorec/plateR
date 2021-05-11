@@ -381,18 +381,23 @@ process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
   print(scale_properties)
 
   pp <- get_well_properties(num_wells)
+  print("Extracted microtitre plate properties")
+
   well_frame <- make_well_frame(pp = pp,
                                 px_per_mm = scale_properties$px_per_mm,
                                 tl_corner = scale_properties$tl_corner)
 
+  print("Created digitial microtitre plate")
+
   ## make well mask
   # d <- min((pp$inter_well_space * scale_properties$px_per_mm) / 4, 5)  # limit the well radius to 5 pixels
-  d <- (pp$inter_well_space * scale_properties$px_per_mm) / 2
+  d <- (pp$inter_well_space * scale_properties$px_per_mm) / 2.1
   # d <- 1
   stencil <- expand.grid(dx = -d:d,
                          dy = -d:d)
   circ_stencil <- round(subset(stencil, (dx^2 + dy^2) < d^2))
   # circ_stencil <- round(stencil)
+  print("Identified wells")
 
   # Summarise values in each well, across all images in a directory ---------
 
@@ -410,7 +415,8 @@ process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
     for (img_idx in seq_along(img_files)) {
       img_file <- img_files[img_idx]
       # p(sprintf("x=%s", img_file))
-      sprintf("%s of %s", img_idx, length(img_files))
+      print(paste(img_idx, "of", length(img_files)))
+      # sprintf("%s of %s", img_idx, length(img_files))
       img <- imager::load.image(img_file)
       if (invert) {
         img <- imager::imrotate(img, 180)
