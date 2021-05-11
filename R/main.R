@@ -401,16 +401,16 @@ process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
                           full.names = T, recursive = F, include.dirs = T)
 
   # keep track of our progress
-  progressr::handlers(global = TRUE)
-  p <- progressr::progressor(along = img_files)
-
+  # progressr::handlers(global = TRUE)
+  # p <- progressr::progressor(along = img_files)
 
   if (!in_parallel) {
     # sequentially process
     all_data <- c()
     for (img_idx in seq_along(img_files)) {
       img_file <- img_files[img_idx]
-      p(sprintf("x=%s", img_file))
+      # p(sprintf("x=%s", img_file))
+      sprintf("%s of %s", img_idx, length(img_files))
       img <- imager::load.image(img_file)
       if (invert) {
         img <- imager::imrotate(img, 180)
@@ -482,7 +482,7 @@ process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
 
   # write summary to .csv
   write.csv(all_data,
-            paste(dir_path, "data_summary.csv", sep = ""),
+            paste(dir_path, format(Sys.time(), "%y%m%d_%H%M_"), "data_summary.csv", sep = ""),
             row.names = F)
 
 }
