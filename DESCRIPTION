@@ -10,16 +10,13 @@ Encoding: UTF-8
 LazyData: true
 Imports:
   dplyr,
-  tidyr,
   ggplot2,
   imager,
   scales,
   rlang,
   methods,
-  furrr,
-  purrr,
-  future,
   progressr,
+  future,
   foreach,
   doFuture
 RoxygenNote: 7.1.1
