@@ -7,22 +7,23 @@
 #' @return
 #'
 #' @examples
-make_well_frame <- function(pp, px_per_mm, tl_corner){
+make_well_frame <- function(pp, px_per_mm, tl_corner) {
   ## make table of all well locations in the image
-  wells <- expand.grid(well_column = 1:pp$plate_dims[1], well_row = 1:pp$plate_dims[2])
+  wells <- expand.grid(well_column = 1:pp$plate_dims[1],
+                       well_row = 1:pp$plate_dims[2])
 
   ## Get A1 position on image
-  A1_px <- c(pp$A1_mm[1] * px_per_mm + tl_corner[1], pp$A1_mm[2] * px_per_mm + tl_corner[2])
+  A1_px <- c(pp$A1_mm[1] * px_per_mm + tl_corner[1],
+             pp$A1_mm[2] * px_per_mm + tl_corner[2])
 
   ## get all well positions on image
-  wells$px_column <- A1_px[1] + pp$inter_well_space * px_per_mm * (wells$well_column -1)
-  wells$px_row <- A1_px[2] + pp$inter_well_space * px_per_mm * (wells$well_row -1)
+  wells$px_column <- round(A1_px[1] + pp$inter_well_space * px_per_mm * (wells$well_column - 1))
+  wells$px_row <- round(A1_px[2] + pp$inter_well_space * px_per_mm * (wells$well_row - 1))
 
   return(wells)
 }
 
 
-#TODO
 #' Title
 #'
 #' @param num_wells
@@ -30,25 +31,25 @@ make_well_frame <- function(pp, px_per_mm, tl_corner){
 #' @return
 #'
 #' @examples
-get_well_properties <- function(num_wells){
+get_well_properties <- function(num_wells) {
   ## SBS PLATE PROPERTIES
   sbs_dims <- c(127.76, 85.48)
-  if(num_wells == 96){
+  if (num_wells == 96) {
     plate_dims <- c(12, 8)
     A1_mm <- c(14.38, 11.24)
-    inter_well_space = 9
-  } else if(num_wells == 384){
+    inter_well_space <- 9
+  } else if (num_wells == 384) {
     plate_dims <- c(24, 16)
     A1_mm <- c(12.13, 8.99)
-    inter_well_space = 4.5
-  } else if(num_wells == 1536){
+    inter_well_space <- 4.5
+  } else if (num_wells == 1536) {
     plate_dims <- c(48, 32)
     A1_mm <- c(11.005, 7.865)
-    inter_well_space = 2.25
+    inter_well_space <- 2.25
   }
 
-  return(list(num_wells=num_wells, plate_dims=plate_dims, A1_mm=A1_mm,
-              inter_well_space=inter_well_space, sbs_dims=sbs_dims))
+  return(list(num_wells = num_wells, plate_dims = plate_dims, A1_mm = A1_mm,
+              inter_well_space = inter_well_space, sbs_dims = sbs_dims))
 }
 
 
@@ -62,15 +63,9 @@ get_well_properties <- function(num_wells){
 #' @return
 #'
 #' @examples
-draw_wells <- function(plate_img, pp, px_per_mm, tl_corner){
-  ## make table of all well locations in the image
-  wells <- make_well_frame(pp, px_per_mm, tl_corner)
-
-  well_img <- data.frame(x=round(wells$px_column),
-                         y=round(wells$px_row),
-                         value=1)
-
-  imager::draw_circle(plate_img, x=well_img$x, y=well_img$y, color = 0, radius = px_per_mm)
+draw_samples <- function(plate_img, x, y, radius) {
+  imager::draw_circle(plate_img, x = x, y = y,
+                      color = 0, radius = radius)
 }
 
 
@@ -84,20 +79,51 @@ draw_wells <- function(plate_img, pp, px_per_mm, tl_corner){
 #' @return
 #'
 #' @examples
-draw_well_grid <- function(plate_img, pp, px_per_mm, tl_corner){
+draw_wells <- function(plate_img, pp, px_per_mm, tl_corner) {
+  d <- (pp$inter_well_space * px_per_mm) / 2.2
+
   ## make table of all well locations in the image
   wells <- make_well_frame(pp, px_per_mm, tl_corner)
 
-  well_img <- data.frame(x=round(wells$px_column),
-                         y=round(wells$px_row),
-                         x0=round(wells$px_column - pp$inter_well_space * px_per_mm / 2),
-                         y0=round(wells$px_row - pp$inter_well_space * px_per_mm / 2),
-                         x1=round(wells$px_column + pp$inter_well_space * px_per_mm / 2),
-                         y1=round(wells$px_row + pp$inter_well_space * px_per_mm / 2),
-                         value=1)
+  # well_img <- data.frame(x = round(wells$px_column),
+  #                        y = round(wells$px_row),
+  #                        value = 1)
 
-  imager::draw_rect(plate_img, x0=well_img$x0, y0=well_img$y0, x1=well_img$x1,
-                    y1=well_img$y1, color = 0, filled = T, opacity = 0.3)
+  imager::draw_circle(plate_img, x = wells$px_column, y = wells$px_row,
+                      radius = d, color = 0, opacity = 0.5)
+
+  # imager::draw_rect(temp, x0 = tl_corner[1], y0 = tl_corner[2],
+  #                   x1 = tl_corner[1] + pp$sbs_dims[1] * px_per_mm,
+  #                   y1 = tl_corner[2] + pp$sbs_dims[2] * px_per_mm,
+  #                   color = 0, opacity = 0.2)
+}
+
+
+#' Title
+#'
+#' @param plate_img
+#' @param pp
+#' @param px_per_mm
+#' @param tl_corner
+#'
+#' @return
+#'
+#' @examples
+draw_well_grid <- function(plate_img, pp, px_per_mm, tl_corner) {
+  ## make table of all well locations in the image
+  wells <- make_well_frame(pp, px_per_mm, tl_corner)
+
+  well_img <- data.frame(x = round(wells$px_column),
+                         y = round(wells$px_row),
+                         x0 = round(wells$px_column - pp$inter_well_space * px_per_mm / 2),
+                         y0 = round(wells$px_row - pp$inter_well_space * px_per_mm / 2),
+                         x1 = round(wells$px_column + pp$inter_well_space * px_per_mm / 2),
+                         y1 = round(wells$px_row + pp$inter_well_space * px_per_mm / 2),
+                         value = 1)
+
+  imager::draw_rect(plate_img, x0 = well_img$x0, y0 = well_img$y0,
+                    x1 = well_img$x1, y1 = well_img$y1,
+                    color = 0, filled = T, opacity = 0.3)
 }
 
 
@@ -110,35 +136,50 @@ draw_well_grid <- function(plate_img, pp, px_per_mm, tl_corner){
 #' @return
 #'
 #' @examples
-interactive_scale_wells <- function(plate_img, pp, scale_properties){
-  px_per_mm <- scale_properties$px_per_mm # 5 # 16.7 #
-  tl_corner <- scale_properties$tl_corner # c(0,0) # c(-37, -67) #
+interactive_scale_wells <- function(plate_img, pp, scale_properties) {
+  px_per_mm <- scale_properties$px_per_mm
+  tl_corner <- scale_properties$tl_corner
 
-  f <- function(state){
-    if(state$key=="arrowleft"){
+  f <- function(state) {
+    if (state$key == "space") {
+      stop("User exited application; spacebar pressed")
+    }
+    if (state$key == "arrowleft") {
       tl_corner <<- c(tl_corner[1] - 1, tl_corner[2])
     }
-    if(state$key=="arrowright"){
+    if (state$key == "arrowright") {
       tl_corner <<- c(tl_corner[1] + 1, tl_corner[2])
     }
-    if(state$key=="arrowup"){
+    if (state$key == "arrowup") {
       tl_corner <<- c(tl_corner[1], tl_corner[2] - 1)
     }
-    if(state$key=="arrowdown"){
+    if (state$key == "arrowdown") {
       tl_corner <<- c(tl_corner[1], tl_corner[2] + 1)
     }
-    if(state$key=="pageup"){
-      px_per_mm <<- px_per_mm + px_per_mm * 0.01
+    if (state$key == "a") {
+      tl_corner <<- c(tl_corner[1] - 10, tl_corner[2])
     }
-    if(state$key=="pagedown"){
-      px_per_mm <<- px_per_mm - px_per_mm * 0.01
+    if (state$key == "d") {
+      tl_corner <<- c(tl_corner[1] + 10, tl_corner[2])
+    }
+    if (state$key == "w") {
+      tl_corner <<- c(tl_corner[1], tl_corner[2] - 10)
+    }
+    if (state$key == "s") {
+      tl_corner <<- c(tl_corner[1], tl_corner[2] + 10)
+    }
+    if (state$key == "pageup") {
+      px_per_mm <<- px_per_mm + min(px_per_mm * 0.01, 0.1)
+    }
+    if (state$key == "pagedown") {
+      px_per_mm <<- px_per_mm - min(px_per_mm * 0.01, 0.1)
     }
 
     draw_well_grid(plate_img, pp, px_per_mm, tl_corner)
   }
-  imager::interact(f)
+  imager::interact(f, title = "Press Esc to accept or Space to exit")
 
-  return(list(px_per_mm=px_per_mm, tl_corner=tl_corner))
+  return(list(px_per_mm = px_per_mm, tl_corner = tl_corner))
 }
 
 
@@ -151,8 +192,8 @@ interactive_scale_wells <- function(plate_img, pp, scale_properties){
 #' @return
 #'
 #' @examples
-interactive_scale_lawn <- function(plate_img, pp, plate_type){
-  if(plate_type == "6-well"){
+interactive_scale_lawn <- function(plate_img, pp, plate_type) {
+  if (plate_type == "6-well") {
     print("Select the centerpoint of the plate")
     center_coord <- imager::grabPoint(plate_img)
 
@@ -161,15 +202,28 @@ interactive_scale_lawn <- function(plate_img, pp, plate_type){
 
     ## calculate scale
     x_dist <- center_coord[1] - one_coord[1]
-    px_per_mm <- x_dist / 25.2  # TODO
+    px_per_mm <- x_dist / 25.4  # TODO
 
-    tl_corner <- c(center_coord[1] - px_per_mm * pp$sbs_dims[1]/2,
-                   center_coord[2] - px_per_mm * pp$sbs_dims[2]/2)
+    tl_corner <- c(center_coord[1] - px_per_mm * pp$sbs_dims[1] / 2 + 27.5,
+                   center_coord[2] - px_per_mm * pp$sbs_dims[2] / 2 + 15)
 
-    return(list(px_per_mm=px_per_mm, tl_corner=tl_corner))
+    return(list(px_per_mm = px_per_mm, tl_corner = tl_corner))
 
-  } else if(plate_type == "1-well"){
+  } else if (plate_type == "1-well") {
+    print("Select well A1")
+    A1_coord <- imager::grabPoint(plate_img)
 
+    print("Select well A24")
+    A24_coord <- imager::grabPoint(plate_img)
+
+    ## calculate scale
+    x_dist <- A24_coord[1] - A1_coord[1]
+    px_per_mm <- x_dist / (pp$inter_well_space * (pp$plate_dims[1] - 1))
+
+    tl_corner <- c(A1_coord[1] - pp$A1_mm[1] * px_per_mm,
+                   A1_coord[2] - pp$A1_mm[2] * px_per_mm)
+
+    return(list(px_per_mm = px_per_mm, tl_corner = tl_corner))
   }
 }
 
@@ -184,7 +238,7 @@ interactive_scale_lawn <- function(plate_img, pp, plate_type){
 #' @return
 #'
 #' @examples
-show_plate_overlay <- function(plate_img, pp, px_per_mm, tl_corner){
+show_plate_overlay <- function(plate_img, pp, px_per_mm, tl_corner) {
   well_frame <- make_well_frame(pp, px_per_mm, tl_corner)
 
   df_plate_img <- as.data.frame(plate_img)
@@ -223,25 +277,36 @@ show_plate_overlay <- function(plate_img, pp, px_per_mm, tl_corner){
 #' @return
 #'
 #' @examples
-get_scale <- function(plate_img, num_wells, experiment_type, plate_type){
-  scale_success = F
+get_scale <- function(plate_img, num_wells, experiment_type, plate_type) {
+  scale_success <- F
   pp <- get_well_properties(num_wells)
 
-  init_colony_scale_guess <- list(px_per_mm=10, tl_corner=c(0,0))
+  init_colony_scale_guess <- list(px_per_mm = 15, tl_corner = c(-100, 50))
 
-  while(!scale_success){
-    if(experiment_type == "lawn"){
+  while (!scale_success) {
+    if (experiment_type == "lawn") {
       scale_properties <- interactive_scale_lawn(plate_img, pp, plate_type)
-    } else if(experiment_type == "colony"){
-      scale_properties <- interactive_scale_wells(plate_img, pp, init_colony_scale_guess)
+    } else if (experiment_type == "colony") {
+      scale_properties <- interactive_scale_wells(plate_img, pp,
+                                                  init_colony_scale_guess)
     }
 
     # check if scaling looks good
     print("Please wait for some processing...")
-    show_plate_overlay(plate_img, pp, scale_properties$px_per_mm, scale_properties$tl_corner)
+
+    imager::display(draw_wells(plate_img, pp,
+               scale_properties$px_per_mm,
+               scale_properties$tl_corner))
+
+
+    # show_plate_overlay(plate_img, pp,
+    #                    scale_properties$px_per_mm,
+    #                    scale_properties$tl_corner)
+
     success_in <- readline(prompt = "Does the grid align correctly? y/n: ")
-    if(success_in == "y"){
-      scale_success = T
+
+    if (success_in == "y") {
+      scale_success <- T
     } else {
       init_colony_scale_guess <- scale_properties
     }
@@ -253,97 +318,18 @@ get_scale <- function(plate_img, num_wells, experiment_type, plate_type){
 
 #' Title
 #'
-#' @param img
-#' @param well_position
-#' @param px_per_mm
-#' @param inter_well_space
+#' @param img_dir
+#' @param img_settings_list e.g. list(c(panel="blue", exposure=20000, intensity=1))
 #'
 #' @return
 #'
 #' @examples
-extract_well_values <- function(img, well_position, px_per_mm, inter_well_space){
-  well_values <- imager::get.stencil(img, stencil, x=v['px_column'], y=v['px_row'])
+get_img_settings <- function(img_idx, img_settings_df){
+  settings_idx <- (img_idx - 1) %% nrow(img_settings_df) + 1
 
-  return(data.frame(mean=mean(well_values),
-                    median=median(well_values),
-                    sd=sd(well_values),
-                    mad=stats::mad(well_values),
-                    max=max(well_values),
-                    min=min(well_values)))
-
-  # dx <- min((inter_well_space * px_per_mm)/4, 5)
-  # well_pixels <- expand.grid(px_x = round(well_position['px_column'] - dx):round(well_position['px_column'] + dx),
-  #                            px_y = round(well_position['px_row'] - dx):round(well_position['px_row'] + dx))
-  #
-  # well_pixels$value <- imager::at(img, well_pixels$px_x, well_pixels$px_y)
-  #
-  # return(well_pixels %>%
-  #          dplyr::summarise(mean=mean(value),
-  #                           median=median(value),
-  #                           sd=sd(value),
-  #                           # mad=stats::mad(value),
-  #                           max=max(value),
-  #                           min=min(value)))
-
-  # return(summarise_well_values(well_pixels))
-}
-
-
-#' Title
-#'
-#' @param well_pixels
-#'
-#' @return
-#'
-#' @examples
-summarise_well_values <- function(well_pixels){
-  return(data.frame(mean=mean(well_pixels$value),
-                    median=median(well_pixels$value),
-                    sd=sd(well_pixels$value),
-                    # mad=stats::mad(well_pixels$value),
-                    max=max(well_pixels$value),
-                    min=min(well_pixels$value)))
-}
-
-
-#' Title
-#'
-#' @param img
-#' @param num_wells
-#' @param scale_properties
-#'
-#' @return
-#'
-#' @examples
-extract_img_values <- function(img_file, p, invert, well_frame,  stencil, ){
-  p(sprintf("x=%s", img_file))
-  img <- imager::load.image(img_file)
-  if(invert){ img <- imager::imrotate(img, 180)}
-
-
-  well_frame$id <- tools::file_path_sans_ext(basename(img_file))
-
-
-  apply(well_frame, 1, function(v) imager::get.stencil(img, stencil, x=v['px_column'], y=v['px_row']))
-
-
-
-
-
-
-
-
-
-
-
-
-  new_frame <- well_frame %>%
-    dplyr::group_by(.data$id, .data$well_column, .data$well_row) %>%
-    tidyr::nest() %>%
-    dplyr::mutate(out = purrr::map(data, ~ extract_well_values(img, unlist(.), scale_properties$px_per_mm, pp$inter_well_space))) %>%
-    tidyr::unnest()
-
-  return(new_frame)
+  this_img_settings <- img_settings_df[settings_idx,]
+  this_img_settings$iteration <- (img_idx - 1) %/% nrow(img_settings_df) + 1
+  return(this_img_settings)
 }
 
 
@@ -356,6 +342,10 @@ extract_img_values <- function(img_file, p, invert, well_frame,  stencil, ){
 #' @param experiment_type "colony" or "lawn"
 #' @param plate_type "6-well" or "1-well"
 #' @param num_wells Plate size used for output positions: 96, 384 or 1536
+#' @param px_per_mm
+#' @param tl_corner
+#' @param in_parallel
+#' @param img_settings_list
 #'
 #' @return
 #' @export
@@ -366,83 +356,133 @@ extract_img_values <- function(img_file, p, invert, well_frame,  stencil, ){
 #' @examples
 process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
                             experiment_type="colony", plate_type="6-well",
-                            num_wells=384){
+                            num_wells=384, px_per_mm=NA, tl_corner=NA,
+                            in_parallel=FALSE, img_settings_list) {
   setwd(dir_path)
-  # layout <- read.csv(layout_csv)
 
-  ## get all images
-  img_files <- list.files(path = dir_path, pattern = utils::glob2rx("*.png"),
-                          full.names = T, recursive = F, include.dirs = T)
+  img_settings_df <- as.data.frame(split(unlist(img_settings_list),
+                                         names(unlist(img_settings_list))))
 
-  ## set up plate layout from single plate
+  # Use single image to get pixel-to-well mapping ---------------------------
+
   align_img <- imager::load.image(align_filename)
-  if(invert){ align_img <- imager::imrotate(align_img, 180)}
+  if (invert) {
+    align_img <- imager::imrotate(align_img, 180)  # rotate image if upside down
+  }
 
-  # scale_properties <- get_scale(plate_img=align_img,
-  #                               num_wells,
-  #                               experiment_type,
-  #                               plate_type)
-  scale_properties <- list(px_per_mm=16.9, tl_corner=c(-107, 47))
+  if (is.na(px_per_mm) | is.na(tl_corner)) {
+    scale_properties <- get_scale(plate_img = align_img,
+                                  num_wells,
+                                  experiment_type,
+                                  plate_type)
+  } else {
+    scale_properties <- list(px_per_mm=px_per_mm, tl_corner=tl_corner)
+  }
+  print(scale_properties)
 
   pp <- get_well_properties(num_wells)
   well_frame <- make_well_frame(pp = pp,
                                 px_per_mm = scale_properties$px_per_mm,
                                 tl_corner = scale_properties$tl_corner)
 
-  ## calculate well mask
-  d <- min((pp$inter_well_space * scale_properties$px_per_mm)/4, 5)
+  ## make well mask
+  # d <- min((pp$inter_well_space * scale_properties$px_per_mm) / 4, 5)  # limit the well radius to 5 pixels
+  d <- (pp$inter_well_space * scale_properties$px_per_mm) / 2
+  # d <- 1
   stencil <- expand.grid(dx = -d:d,
                          dy = -d:d)
-  circ.stencil <- subset(stencil,(dx^2 + dy^2) < d^2)
+  circ_stencil <- round(subset(stencil, (dx^2 + dy^2) < d^2))
+  # circ_stencil <- round(stencil)
 
-  ## extract pixel values for all images
-  well_frame %>%
-    dplyr::rowwise() %>%
-    dplyr::mutate(value = list(imager::get.stencil(align_img, circ.stencil, x=.data$px_column, y=.data$px_row))) %>%
-    dplyr::mutate(mean=mean(value),
-                  median=median(value),
-                  sd=sd(value),
-                  mad=stats::mad(value),
-                  max=max(value),
-                  min=min(value))
+  # Summarise values in each well, across all images in a directory ---------
 
+  ## get all images
+  img_files <- list.files(path = dir_path, pattern = utils::glob2rx("*.png"),
+                          full.names = T, recursive = F, include.dirs = T)
 
-  # stub_img_files <- img_files[1:10]
-  #
+  # keep track of our progress
   progressr::handlers(global = TRUE)
-  p <- progressr::progressor(along=img_files)
+  p <- progressr::progressor(along = img_files)
 
-  doFuture::registerDoFuture()
-  future::plan(future::multisession)
 
-  all_data <- foreach::foreach(img_file=img_files, .combine = rbind, .inorder = F) %dopar%
-    {
-      extract_img_values(img_file, p, invert, num_wells, scale_properties)
+  if (!in_parallel) {
+    # sequentially process
+    all_data <- c()
+    for (img_idx in seq_along(img_files)) {
+      img_file <- img_files[img_idx]
+      p(sprintf("x=%s", img_file))
+      img <- imager::load.image(img_file)
+      if (invert) {
+        img <- imager::imrotate(img, 180)
+      }
+
+      this_frame <- well_frame
+      this_frame$id <- tools::file_path_sans_ext(basename(img_file))
+
+      img_settings <- get_img_settings(img_idx, img_settings_df)
+      this_frame <- cbind(this_frame, img_settings)
+
+      this_frame <- this_frame %>%
+        dplyr::rowwise() %>%
+        dplyr::mutate(point_value = imager::at(img,
+                                               x = .data$px_column,
+                                               y = .data$px_row)) %>%
+        # dplyr::mutate(all_px_column = list(imager::center.stencil(circ_stencil,
+        #                                                x = .data$px_column,
+        #                                                y = .data$px_row)$x)) %>%
+        # dplyr::mutate(all_px_row = list(imager::center.stencil(circ_stencil,
+        #                                                           x = .data$px_column,
+        #                                                           y = .data$px_row)$y)) %>%
+        dplyr::mutate(value = list(imager::get.stencil(img, circ_stencil,
+                                                       x = .data$px_column,
+                                                       y = .data$px_row))) %>%
+        dplyr::mutate(mean = mean(.data$value),
+                      median = median(.data$value),
+                      sd = sd(.data$value),
+                      mad = stats::mad(.data$value),
+                      max = max(.data$value),
+                      min = min(.data$value),
+                      n_saturated = sum(.data$value == 1)) %>%
+        dplyr::select(-.data$value)
+      all_data <- rbind(all_data, this_frame)
     }
+  } else if (in_parallel) {
+    ## in parallel...
+    doFuture::registerDoFuture()
+    future::plan(future::multisession)
 
+    ## summarise each well in each image
+    all_data <- foreach::foreach(img_file = img_files,
+                                 .combine = rbind,
+                                 .inorder = F) %dopar% {
+                                   p(sprintf("x=%s", img_file))
+                                   img <- imager::load.image(img_file)
+                                   if (invert) {
+                                     img <- imager::imrotate(img, 180)
+                                   }
 
+                                   this_frame <- well_frame
+                                   this_frame$id <- tools::file_path_sans_ext(basename(img_file))
 
+                                   this_frame <- this_frame %>%
+                                     dplyr::rowwise() %>%
+                                     dplyr::mutate(value = list(imager::get.stencil(img,
+                                                                                    circ_stencil,
+                                                                                    x = .data$px_column,
+                                                                                    y = .data$px_row))) %>%
+                                     dplyr::mutate(mean = mean(value),
+                                                   median = median(value),
+                                                   sd = sd(value),
+                                                   mad = stats::mad(value),
+                                                   max = max(value),
+                                                   min = min(value),
+                                                   n_saturated = sum(value == 1))
+                                 }
+  }
 
-
-
-
-
-
-
-  # all_data <- purrr::map(img_files,
-  #                        ~ extract_img_values(., p, invert, num_wells, scale_properties)) %>%
-  #   purrr::reduce(rbind)
-
-
-  # future::plan(future::multisession)
-  # all_data <- furrr::future_map(img_files,
-  #                               ~ extract_img_values(., invert, num_wells, scale_properties),
-  #                               .progress = T) %>%
-  #   purrr::reduce(rbind)
-
-  write.csv(all_data, paste(dir_path, "data_summary.csv", sep = ""), row.names = F)
-
-
-  ## normalise
+  # write summary to .csv
+  write.csv(all_data,
+            paste(dir_path, "data_summary.csv", sep = ""),
+            row.names = F)
 
 }

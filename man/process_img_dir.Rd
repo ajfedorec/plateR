@@ -11,7 +11,11 @@ process_img_dir(
   layout_csv,
   experiment_type = "colony",
   plate_type = "6-well",
-  num_wells = 384
+  num_wells = 384,
+  px_per_mm = NA,
+  tl_corner = NA,
+  in_parallel = FALSE,
+  img_settings_list
 )
 }
 \arguments{
@@ -28,6 +32,8 @@ process_img_dir(
 \item{plate_type}{"6-well" or "1-well"}
 
 \item{num_wells}{Plate size used for output positions: 96, 384 or 1536}
+
+\item{img_settings_list}{}
 }
 \value{
 
