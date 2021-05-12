@@ -324,11 +324,6 @@ get_scale <- function(plate_img, num_wells, experiment_type, plate_type) {
                                scale_properties$px_per_mm,
                                scale_properties$tl_corner))
 
-
-    # show_plate_overlay(plate_img, pp,
-    #                    scale_properties$px_per_mm,
-    #                    scale_properties$tl_corner)
-
     success_in <- readline(prompt = "Does the grid align correctly? y/n: ")
 
     if (success_in == "y") {
@@ -363,15 +358,16 @@ get_img_settings <- function(img_idx, img_settings_df){
 #'
 #' @param dir_path path to directory containing plate images (.png images only)
 #' @param align_filename filename of image used to align well grid
-#' @param invert Boolean flag. Set to TRUE if the images are upside-down
+#' @param invert Boolean flag. Set to {TRUE} if the images are upside-down
 #' @param layout_csv .csv with metadata for each position on the plate
 #' @param experiment_type "colony" or "lawn"
 #' @param plate_type "6-well" or "1-well"
 #' @param num_wells Plate size used for output positions: 96, 384 or 1536
-#' @param px_per_mm
-#' @param tl_corner
-#' @param in_parallel
-#' @param img_settings_list
+#' @param px_per_mm If you already know the `px_per_mm` value (from previous alignment)
+#' @param tl_corner If you already know the `tl_corner` values (from previous alignment)
+#' @param in_parallel process images in parallel (only available for R >= 4.0)
+#' @param img_settings_list a list of named vectors with meta-data for images in the order they were taken i.e.
+#' `img_settings_list = list(c(panel="blue", exposure=20000, intensity=1),c(panel="red", exposure=4000, intensity=0.7))`
 #'
 #' @return
 #' @export
@@ -477,8 +473,8 @@ process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
     future::plan(future::multisession)
 
     # keep track of our progress
-    # progressr::handlers(global = TRUE)
-    # p <- progressr::progressor(along = img_files)
+    progressr::handlers(global = TRUE)
+    p <- progressr::progressor(along = img_files)
 
     ## summarise each well in each image
     all_data <- foreach::foreach(img_file = img_files,
@@ -493,24 +489,31 @@ process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
                                    this_frame <- well_frame
                                    this_frame$id <- tools::file_path_sans_ext(basename(img_file))
 
+                                   img_settings <- get_img_settings(which(img_file %in% img_files), img_settings_df)
+                                   this_frame <- cbind(this_frame, img_settings)
+
                                    this_frame <- this_frame %>%
                                      dplyr::rowwise() %>%
+                                     dplyr::mutate(point_value = imager::at(img,
+                                                                            x = .data$px_column,
+                                                                            y = .data$px_row)) %>%
                                      dplyr::mutate(value = list(imager::get.stencil(img,
                                                                                     circ_stencil,
                                                                                     x = .data$px_column,
                                                                                     y = .data$px_row))) %>%
-                                     dplyr::mutate(mean = mean(value),
-                                                   median = median(value),
-                                                   sd = sd(value),
-                                                   mad = stats::mad(value),
-                                                   max = max(value),
-                                                   min = min(value),
-                                                   n_saturated = sum(value == 1))
+                                     dplyr::mutate(mean = mean(.data$value),
+                                                   median = median(.data$value),
+                                                   sd = sd(.data$value),
+                                                   # mad = stats::mad(.data$value),
+                                                   max = max(.data$value),
+                                                   min = min(.data$value),
+                                                   n_saturated = sum(.data$value == 1)) %>%
+                                     dplyr::select(-.data$value)
                                  }
   }
 
   # write summary to .csv
-  write.csv(all_data,
+  utils::write.csv(all_data,
             paste(dir_path, format(Sys.time(), "%y%m%d_%H%M_"), "data_summary.csv", sep = ""),
             row.names = F)
 

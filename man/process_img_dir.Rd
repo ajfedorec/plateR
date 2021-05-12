@@ -23,7 +23,7 @@ process_img_dir(
 
 \item{align_filename}{filename of image used to align well grid}
 
-\item{invert}{Boolean flag. Set to TRUE if the images are upside-down}
+\item{invert}{Boolean flag. Set to {TRUE} if the images are upside-down}
 
 \item{layout_csv}{.csv with metadata for each position on the plate}
 
@@ -33,7 +33,14 @@ process_img_dir(
 
 \item{num_wells}{Plate size used for output positions: 96, 384 or 1536}
 
-\item{img_settings_list}{}
+\item{px_per_mm}{If you already know the `px_per_mm` value (from previous alignment)}
+
+\item{tl_corner}{If you already know the `tl_corner` values (from previous alignment)}
+
+\item{in_parallel}{process images in parallel (only available for R >= 4.0)}
+
+\item{img_settings_list}{a list of named vectors with meta-data for images in the order they were taken i.e.
+`img_settings_list = list(c(panel="blue", exposure=20000, intensity=1),c(panel="red", exposure=4000, intensity=0.7))`}
 }
 \value{
 
