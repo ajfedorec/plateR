@@ -354,6 +354,50 @@ get_img_settings <- function(img_idx, img_settings_df){
 }
 
 
+#' Title
+#'
+#' @param img_file
+#' @param invert
+#' @param well_frame
+#' @param img_idx
+#' @param img_settings_df
+#' @param circ_stencil
+#'
+#' @return
+#'
+#' @examples
+summarise_image <- function(img_file, invert, well_frame, img_idx,
+                            img_settings_df, circ_stencil) {
+  img <- imager::load.image(img_file)
+  if (invert) {
+    img <- imager::imrotate(img, 180)
+  }
+
+  this_frame <- well_frame
+  this_frame$id <- tools::file_path_sans_ext(basename(img_file))
+
+  img_settings <- get_img_settings(img_idx, img_settings_df)
+  this_frame <- cbind(this_frame, img_settings)
+
+  this_frame <- this_frame %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(point_value = imager::at(img,
+                                           x = .data$px_column,
+                                           y = .data$px_row)) %>%
+    dplyr::mutate(value = list(imager::get.stencil(img, circ_stencil,
+                                                   x = .data$px_column,
+                                                   y = .data$px_row))) %>%
+    dplyr::mutate(mean = mean(.data$value),
+                  median = median(.data$value),
+                  sd = sd(.data$value),
+                  # mad = stats::mad(.data$value),
+                  max = max(.data$value),
+                  min = min(.data$value),
+                  n_saturated = sum(.data$value == 1)) %>%
+    dplyr::select(-.data$value)
+}
+
+
 #' Process a folder of images
 #'
 #' @param dir_path path to directory containing plate images (.png images only)
@@ -412,13 +456,10 @@ process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
   print("Created digitial microtitre plate")
 
   ## make well mask
-  # d <- min((pp$inter_well_space * scale_properties$px_per_mm) / 4, 5)  # limit the well radius to 5 pixels
   d <- (pp$inter_well_space * scale_properties$px_per_mm) / 2.2
-  # d <- 1
   stencil <- expand.grid(dx = -d:d,
                          dy = -d:d)
   circ_stencil <- round(subset(stencil, (dx^2 + dy^2) < d^2))
-  # circ_stencil <- round(stencil)
   print("Created a pixel-to-well mapping")
 
   # Summarise values in each well, across all images in a directory ---------
@@ -436,35 +477,10 @@ process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
       img_file <- img_files[img_idx]
 
       utils::setTxtProgressBar(pb, img_idx)
-      # p(sprintf("x=%s", img_file))
 
-      img <- imager::load.image(img_file)
-      if (invert) {
-        img <- imager::imrotate(img, 180)
-      }
+      this_frame <- summarise_image(img_file, invert, well_frame, img_idx,
+                                    img_settings_df, circ_stencil)
 
-      this_frame <- well_frame
-      this_frame$id <- tools::file_path_sans_ext(basename(img_file))
-
-      img_settings <- get_img_settings(img_idx, img_settings_df)
-      this_frame <- cbind(this_frame, img_settings)
-
-      this_frame <- this_frame %>%
-        dplyr::rowwise() %>%
-        dplyr::mutate(point_value = imager::at(img,
-                                               x = .data$px_column,
-                                               y = .data$px_row)) %>%
-        dplyr::mutate(value = list(imager::get.stencil(img, circ_stencil,
-                                                       x = .data$px_column,
-                                                       y = .data$px_row))) %>%
-        dplyr::mutate(mean = mean(.data$value),
-                      median = median(.data$value),
-                      sd = sd(.data$value),
-                      # mad = stats::mad(.data$value),
-                      max = max(.data$value),
-                      min = min(.data$value),
-                      n_saturated = sum(.data$value == 1)) %>%
-        dplyr::select(-.data$value)
       all_data <- rbind(all_data, this_frame)
     }
   } else if (in_parallel) {
@@ -481,34 +497,15 @@ process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
                                  .combine = rbind,
                                  .inorder = F) %dopar% {
                                    p(sprintf("x=%s", img_file))
-                                   img <- imager::load.image(img_file)
-                                   if (invert) {
-                                     img <- imager::imrotate(img, 180)
-                                   }
 
-                                   this_frame <- well_frame
-                                   this_frame$id <- tools::file_path_sans_ext(basename(img_file))
+                                   img_idx <- which(img_file %in% img_files)
 
-                                   img_settings <- get_img_settings(which(img_file %in% img_files), img_settings_df)
-                                   this_frame <- cbind(this_frame, img_settings)
-
-                                   this_frame <- this_frame %>%
-                                     dplyr::rowwise() %>%
-                                     dplyr::mutate(point_value = imager::at(img,
-                                                                            x = .data$px_column,
-                                                                            y = .data$px_row)) %>%
-                                     dplyr::mutate(value = list(imager::get.stencil(img,
-                                                                                    circ_stencil,
-                                                                                    x = .data$px_column,
-                                                                                    y = .data$px_row))) %>%
-                                     dplyr::mutate(mean = mean(.data$value),
-                                                   median = median(.data$value),
-                                                   sd = sd(.data$value),
-                                                   # mad = stats::mad(.data$value),
-                                                   max = max(.data$value),
-                                                   min = min(.data$value),
-                                                   n_saturated = sum(.data$value == 1)) %>%
-                                     dplyr::select(-.data$value)
+                                   this_frame <- summarise_image(img_file,
+                                                                 invert,
+                                                                 well_frame,
+                                                                 img_idx,
+                                                                 img_settings_df,
+                                                                 circ_stencil)
                                  }
   }
 
