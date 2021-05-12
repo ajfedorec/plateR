@@ -7,7 +7,7 @@
 draw_samples(plate_img, x, y, radius)
 }
 \arguments{
-\item{tl_corner}{}
+\item{plate_img}{}
 }
 \value{
 

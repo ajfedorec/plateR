@@ -55,17 +55,39 @@ get_well_properties <- function(num_wells) {
 
 #' Title
 #'
+#' @param img
+#'
+#' @return
+#'
+#' @examples
+get_img_scale_factor <- function(img){
+  img_dims <- dim(img)
+  max_dim <- max(img_dims)
+
+  scale_factor <- max_dim / 720 # this is arbitrary; will use to limit any displayed image to max 720p in any axis
+
+  return(scale_factor)
+}
+
+
+#' Title
+#'
+#' @param x
+#' @param y
+#' @param radius
 #' @param plate_img
-#' @param pp
-#' @param px_per_mm
-#' @param tl_corner
 #'
 #' @return
 #'
 #' @examples
 draw_samples <- function(plate_img, x, y, radius) {
-  imager::draw_circle(plate_img, x = x, y = y,
-                      color = 0, radius = radius)
+  scale_factor <- get_img_scale_factor(plate_img)
+
+  imager::draw_circle(imager::imresize(plate_img, 1/scale_factor),
+                      x = x/scale_factor,
+                      y = y/scale_factor,
+                      radius = radius/scale_factor,
+                      color = 0)
 }
 
 
@@ -85,17 +107,13 @@ draw_wells <- function(plate_img, pp, px_per_mm, tl_corner) {
   ## make table of all well locations in the image
   wells <- make_well_frame(pp, px_per_mm, tl_corner)
 
-  # well_img <- data.frame(x = round(wells$px_column),
-  #                        y = round(wells$px_row),
-  #                        value = 1)
-
-  imager::draw_circle(plate_img, x = wells$px_column, y = wells$px_row,
-                      radius = d, color = 0, opacity = 0.5)
-
-  # imager::draw_rect(temp, x0 = tl_corner[1], y0 = tl_corner[2],
-  #                   x1 = tl_corner[1] + pp$sbs_dims[1] * px_per_mm,
-  #                   y1 = tl_corner[2] + pp$sbs_dims[2] * px_per_mm,
-  #                   color = 0, opacity = 0.2)
+  scale_factor <- get_img_scale_factor(plate_img)
+  imager::draw_circle(imager::imresize(plate_img, 1/scale_factor),
+                      x = wells$px_column / scale_factor,
+                      y = wells$px_row / scale_factor,
+                      radius = d / scale_factor,
+                      color = 0,
+                      opacity = 0.5)
 }
 
 
@@ -121,8 +139,13 @@ draw_well_grid <- function(plate_img, pp, px_per_mm, tl_corner) {
                          y1 = round(wells$px_row + pp$inter_well_space * px_per_mm / 2),
                          value = 1)
 
-  imager::draw_rect(plate_img, x0 = well_img$x0, y0 = well_img$y0,
-                    x1 = well_img$x1, y1 = well_img$y1,
+  scale_factor <- get_img_scale_factor(plate_img)
+
+  imager::draw_rect(imager::imresize(plate_img, 1/scale_factor),
+                    x0 = well_img$x0 / scale_factor,
+                    y0 = well_img$y0 / scale_factor,
+                    x1 = well_img$x1 / scale_factor,
+                    y1 = well_img$y1 / scale_factor,
                     color = 0, filled = T, opacity = 0.3)
 }
 
@@ -193,12 +216,15 @@ interactive_scale_wells <- function(plate_img, pp, scale_properties) {
 #'
 #' @examples
 interactive_scale_lawn <- function(plate_img, pp, plate_type) {
+  scale_factor <- get_img_scale_factor(plate_img)
+  scaled_img <- imager::imresize(plate_img, 1/scale_factor)
+
   if (plate_type == "6-well") {
     print("Select the centerpoint of the plate")
-    center_coord <- imager::grabPoint(plate_img)
+    center_coord <- imager::grabPoint(scaled_img) * scale_factor
 
     print("Select the bottom of the '1'")
-    one_coord <- imager::grabPoint(plate_img)
+    one_coord <- imager::grabPoint(scaled_img) * scale_factor
 
     ## calculate scale
     x_dist <- center_coord[1] - one_coord[1]
@@ -211,10 +237,10 @@ interactive_scale_lawn <- function(plate_img, pp, plate_type) {
 
   } else if (plate_type == "1-well") {
     print("Select well A1")
-    A1_coord <- imager::grabPoint(plate_img)
+    A1_coord <- imager::grabPoint(scaled_img) * scale_factor
 
     print("Select well A24")
-    A24_coord <- imager::grabPoint(plate_img)
+    A24_coord <- imager::grabPoint(scaled_img) * scale_factor
 
     ## calculate scale
     x_dist <- A24_coord[1] - A1_coord[1]
@@ -318,8 +344,8 @@ get_scale <- function(plate_img, num_wells, experiment_type, plate_type) {
 
 #' Title
 #'
-#' @param img_dir
-#' @param img_settings_list e.g. list(c(panel="blue", exposure=20000, intensity=1))
+#' @param img_idx
+#' @param img_settings_df
 #'
 #' @return
 #'
@@ -391,13 +417,13 @@ process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
 
   ## make well mask
   # d <- min((pp$inter_well_space * scale_properties$px_per_mm) / 4, 5)  # limit the well radius to 5 pixels
-  d <- (pp$inter_well_space * scale_properties$px_per_mm) / 2.1
+  d <- (pp$inter_well_space * scale_properties$px_per_mm) / 2.2
   # d <- 1
   stencil <- expand.grid(dx = -d:d,
                          dy = -d:d)
   circ_stencil <- round(subset(stencil, (dx^2 + dy^2) < d^2))
   # circ_stencil <- round(stencil)
-  print("Identified wells")
+  print("Created a pixel-to-well mapping")
 
   # Summarise values in each well, across all images in a directory ---------
 
@@ -416,6 +442,7 @@ process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
       img_file <- img_files[img_idx]
       # p(sprintf("x=%s", img_file))
       print(paste(img_idx, "of", length(img_files)))
+    # sequentially process
       # sprintf("%s of %s", img_idx, length(img_files))
       img <- imager::load.image(img_file)
       if (invert) {
