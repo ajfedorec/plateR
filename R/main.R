@@ -321,8 +321,8 @@ get_scale <- function(plate_img, num_wells, experiment_type, plate_type) {
     print("Please wait for some processing...")
 
     imager::display(draw_wells(plate_img, pp,
-               scale_properties$px_per_mm,
-               scale_properties$tl_corner))
+                               scale_properties$px_per_mm,
+                               scale_properties$tl_corner))
 
 
     # show_plate_overlay(plate_img, pp,
@@ -431,19 +431,17 @@ process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
   img_files <- list.files(path = dir_path, pattern = utils::glob2rx("*.png"),
                           full.names = T, recursive = F, include.dirs = T)
 
-  # keep track of our progress
-  # progressr::handlers(global = TRUE)
-  # p <- progressr::progressor(along = img_files)
-
+  print("Extracting summary from each image")
   if (!in_parallel) {
     # sequentially process
+    pb <- utils::txtProgressBar(max  = length(img_files), style = 3)
     all_data <- c()
     for (img_idx in seq_along(img_files)) {
       img_file <- img_files[img_idx]
+
+      utils::setTxtProgressBar(pb, img_idx)
       # p(sprintf("x=%s", img_file))
-      print(paste(img_idx, "of", length(img_files)))
-    # sequentially process
-      # sprintf("%s of %s", img_idx, length(img_files))
+
       img <- imager::load.image(img_file)
       if (invert) {
         img <- imager::imrotate(img, 180)
@@ -460,19 +458,13 @@ process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
         dplyr::mutate(point_value = imager::at(img,
                                                x = .data$px_column,
                                                y = .data$px_row)) %>%
-        # dplyr::mutate(all_px_column = list(imager::center.stencil(circ_stencil,
-        #                                                x = .data$px_column,
-        #                                                y = .data$px_row)$x)) %>%
-        # dplyr::mutate(all_px_row = list(imager::center.stencil(circ_stencil,
-        #                                                           x = .data$px_column,
-        #                                                           y = .data$px_row)$y)) %>%
         dplyr::mutate(value = list(imager::get.stencil(img, circ_stencil,
                                                        x = .data$px_column,
                                                        y = .data$px_row))) %>%
         dplyr::mutate(mean = mean(.data$value),
                       median = median(.data$value),
                       sd = sd(.data$value),
-                      mad = stats::mad(.data$value),
+                      # mad = stats::mad(.data$value),
                       max = max(.data$value),
                       min = min(.data$value),
                       n_saturated = sum(.data$value == 1)) %>%
@@ -483,6 +475,10 @@ process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
     ## in parallel...
     doFuture::registerDoFuture()
     future::plan(future::multisession)
+
+    # keep track of our progress
+    # progressr::handlers(global = TRUE)
+    # p <- progressr::progressor(along = img_files)
 
     ## summarise each well in each image
     all_data <- foreach::foreach(img_file = img_files,
