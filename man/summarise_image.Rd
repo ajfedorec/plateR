@@ -6,7 +6,9 @@
 \usage{
 summarise_image(
   img_file,
+  normalise,
   invert,
+  rotate,
   well_frame,
   img_idx,
   img_settings_df,
@@ -14,7 +16,7 @@ summarise_image(
 )
 }
 \arguments{
-\item{circ_stencil}{}
+\item{rotate}{}
 }
 \value{
 

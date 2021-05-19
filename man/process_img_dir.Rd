@@ -8,8 +8,10 @@ process_img_dir(
   dir_path,
   align_filename,
   invert = F,
+  rotate = F,
   layout_csv,
   experiment_type = "colony",
+  normalise = F,
   plate_type = "6-well",
   num_wells = 384,
   px_per_mm = NA,
@@ -23,7 +25,9 @@ process_img_dir(
 
 \item{align_filename}{filename of image used to align well grid}
 
-\item{invert}{Boolean flag. Set to {TRUE} if the images are upside-down}
+\item{invert}{Boolean flag. Set to {TRUE} if the plate is inverted in the imager}
+
+\item{rotate}{Boolean flag. Set to {TRUE} if the images are upside-down i.e. row A on bottom of image}
 
 \item{layout_csv}{.csv with metadata for each position on the plate}
 

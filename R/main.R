@@ -362,14 +362,29 @@ get_img_settings <- function(img_idx, img_settings_df){
 #' @param img_idx
 #' @param img_settings_df
 #' @param circ_stencil
+#' @param rotate
 #'
 #' @return
 #'
 #' @examples
-summarise_image <- function(img_file, invert, well_frame, img_idx,
+summarise_image <- function(img_file, normalise, invert, rotate, well_frame, img_idx,
                             img_settings_df, circ_stencil) {
   img <- imager::load.image(img_file)
+
+  if(normalise){
+    settings_idx <- (img_idx - 1) %% nrow(img_settings_df)
+    neg_img_file <- paste(dirname(img_file),
+                          "/",
+                          stringr::str_pad(settings_idx, width = 6, side = "left", pad = "0"),
+                          ".png", sep = "")
+    neg_img <- imager::load.image(neg_img_file)
+    img <- img - neg_img
+  }
+
   if (invert) {
+    img <- invert_image(img)
+  }
+  if (rotate) {
     img <- imager::imrotate(img, 180)
   }
 
@@ -398,11 +413,27 @@ summarise_image <- function(img_file, invert, well_frame, img_idx,
 }
 
 
+#' Title
+#'
+#' @param img
+#'
+#' @return
+#'
+#' @examples
+invert_image <- function(img){
+  map_invert <- function(x,y) list(x=x, y=(y-imager::height(img))*-1)
+
+  inv_img <- imager::imwarp(img, map_invert)
+
+  return(inv_img)
+}
+
+
 #' Process a folder of images
 #'
 #' @param dir_path path to directory containing plate images (.png images only)
 #' @param align_filename filename of image used to align well grid
-#' @param invert Boolean flag. Set to {TRUE} if the images are upside-down
+#' @param invert Boolean flag. Set to {TRUE} if the plate is inverted in the imager
 #' @param layout_csv .csv with metadata for each position on the plate
 #' @param experiment_type "colony" or "lawn"
 #' @param plate_type "6-well" or "1-well"
@@ -412,6 +443,7 @@ summarise_image <- function(img_file, invert, well_frame, img_idx,
 #' @param in_parallel process images in parallel (only available for R >= 4.0)
 #' @param img_settings_list a list of named vectors with meta-data for images in the order they were taken i.e.
 #' `img_settings_list = list(c(panel="blue", exposure=20000, intensity=1),c(panel="red", exposure=4000, intensity=0.7))`
+#' @param rotate Boolean flag. Set to {TRUE} if the images are upside-down i.e. row A on bottom of image
 #'
 #' @return
 #' @export
@@ -420,10 +452,10 @@ summarise_image <- function(img_file, invert, well_frame, img_idx,
 #' @importFrom foreach %dopar%
 #'
 #' @examples
-process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
-                            experiment_type="colony", plate_type="6-well",
-                            num_wells=384, px_per_mm=NA, tl_corner=NA,
-                            in_parallel=FALSE, img_settings_list) {
+process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
+                            layout_csv, experiment_type="colony", normalise=F,
+                            plate_type="6-well", num_wells=384, px_per_mm=NA,
+                            tl_corner=NA, in_parallel=FALSE, img_settings_list) {
   setwd(dir_path)
 
   img_settings_df <- as.data.frame(split(unlist(img_settings_list),
@@ -433,6 +465,9 @@ process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
 
   align_img <- imager::load.image(align_filename)
   if (invert) {
+    align_img <- invert_image(align_img)  # rotate image if upside down
+  }
+  if (rotate) {
     align_img <- imager::imrotate(align_img, 180)  # rotate image if upside down
   }
 
@@ -478,8 +513,9 @@ process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
 
       utils::setTxtProgressBar(pb, img_idx)
 
-      this_frame <- summarise_image(img_file, invert, well_frame, img_idx,
-                                    img_settings_df, circ_stencil)
+      this_frame <- summarise_image(img_file, normalise, invert, rotate,
+                                    well_frame, img_idx, img_settings_df,
+                                    circ_stencil)
 
       all_data <- rbind(all_data, this_frame)
     }
@@ -498,10 +534,12 @@ process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
                                  .inorder = F) %dopar% {
                                    p(sprintf("x=%s", img_file))
 
-                                   img_idx <- which(img_file %in% img_files)
+                                   img_idx <- which(img_file == img_files)
 
                                    this_frame <- summarise_image(img_file,
+                                                                 normalise,
                                                                  invert,
+                                                                 rotate,
                                                                  well_frame,
                                                                  img_idx,
                                                                  img_settings_df,
@@ -511,7 +549,7 @@ process_img_dir <- function(dir_path, align_filename, invert=F, layout_csv,
 
   # write summary to .csv
   utils::write.csv(all_data,
-            paste(dir_path, format(Sys.time(), "%y%m%d_%H%M_"), "data_summary.csv", sep = ""),
-            row.names = F)
+                   paste(dir_path, format(Sys.time(), "%y%m%d_%H%M_"), "data_summary.csv", sep = ""),
+                   row.names = F)
 
 }
