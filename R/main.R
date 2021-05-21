@@ -198,7 +198,7 @@ interactive_scale_wells <- function(plate_img, pp, scale_properties) {
       px_per_mm <<- px_per_mm - min(px_per_mm * 0.01, 0.1)
     }
 
-    draw_well_grid(plate_img, pp, px_per_mm, tl_corner)
+    draw_wells(plate_img, pp, px_per_mm, tl_corner)
   }
   imager::interact(f, title = "Press Esc to accept or Space to exit")
 
@@ -371,16 +371,18 @@ summarise_image <- function(img_file, normalise, invert, rotate, well_frame, img
                             img_settings_df, circ_stencil) {
   img <- imager::load.image(img_file)
 
+  # normalise by negating image from same set at iteration 0
   if(normalise){
     settings_idx <- (img_idx - 1) %% nrow(img_settings_df)
-    neg_img_file <- paste(dirname(img_file),
-                          "/",
-                          stringr::str_pad(settings_idx, width = 6, side = "left", pad = "0"),
-                          ".png", sep = "")
+    neg_img_file <- file.path(dirname(img_file),
+                              paste(stringr::str_pad(settings_idx, width = 6,
+                                                     side = "left", pad = "0"),
+                                    ".png", sep = ""))
     neg_img <- imager::load.image(neg_img_file)
     img <- img - neg_img
   }
 
+  # transform image if necessary
   if (invert) {
     img <- invert_image(img)
   }
@@ -506,7 +508,7 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
   print("Extracting summary from each image")
   if (!in_parallel) {
     # sequentially process
-    pb <- utils::txtProgressBar(max  = length(img_files), style = 3)
+    pb <- utils::txtProgressBar(min = 0, max  = length(img_files), style = 3)
     all_data <- c()
     for (img_idx in seq_along(img_files)) {
       img_file <- img_files[img_idx]
@@ -549,7 +551,7 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
 
   # write summary to .csv
   utils::write.csv(all_data,
-                   paste(dir_path, format(Sys.time(), "%y%m%d_%H%M_"), "data_summary.csv", sep = ""),
+                   file.path(dir_path, paste(format(Sys.time(), "%y%m%d_%H%M_"), "data_summary.csv", sep = "")),
                    row.names = F)
 
 }
