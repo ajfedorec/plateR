@@ -72,27 +72,6 @@ get_img_scale_factor <- function(img){
 
 #' Title
 #'
-#' @param x
-#' @param y
-#' @param radius
-#' @param plate_img
-#'
-#' @return
-#'
-#' @examples
-draw_samples <- function(plate_img, x, y, radius) {
-  scale_factor <- get_img_scale_factor(plate_img)
-
-  imager::draw_circle(imager::imresize(plate_img, 1/scale_factor),
-                      x = x/scale_factor,
-                      y = y/scale_factor,
-                      radius = radius/scale_factor,
-                      color = 0)
-}
-
-
-#' Title
-#'
 #' @param plate_img
 #' @param pp
 #' @param px_per_mm
@@ -102,7 +81,7 @@ draw_samples <- function(plate_img, x, y, radius) {
 #'
 #' @examples
 draw_wells <- function(plate_img, pp, px_per_mm, tl_corner) {
-  d <- (pp$inter_well_space * px_per_mm) / 2.2
+  d <- (pp$inter_well_space * px_per_mm) / 3
 
   ## make table of all well locations in the image
   wells <- make_well_frame(pp, px_per_mm, tl_corner)
@@ -112,41 +91,9 @@ draw_wells <- function(plate_img, pp, px_per_mm, tl_corner) {
                       x = wells$px_column / scale_factor,
                       y = wells$px_row / scale_factor,
                       radius = d / scale_factor,
-                      color = 0,
-                      opacity = 0.5)
-}
-
-
-#' Title
-#'
-#' @param plate_img
-#' @param pp
-#' @param px_per_mm
-#' @param tl_corner
-#'
-#' @return
-#'
-#' @examples
-draw_well_grid <- function(plate_img, pp, px_per_mm, tl_corner) {
-  ## make table of all well locations in the image
-  wells <- make_well_frame(pp, px_per_mm, tl_corner)
-
-  well_img <- data.frame(x = round(wells$px_column),
-                         y = round(wells$px_row),
-                         x0 = round(wells$px_column - pp$inter_well_space * px_per_mm / 2),
-                         y0 = round(wells$px_row - pp$inter_well_space * px_per_mm / 2),
-                         x1 = round(wells$px_column + pp$inter_well_space * px_per_mm / 2),
-                         y1 = round(wells$px_row + pp$inter_well_space * px_per_mm / 2),
-                         value = 1)
-
-  scale_factor <- get_img_scale_factor(plate_img)
-
-  imager::draw_rect(imager::imresize(plate_img, 1/scale_factor),
-                    x0 = well_img$x0 / scale_factor,
-                    y0 = well_img$y0 / scale_factor,
-                    x1 = well_img$x1 / scale_factor,
-                    y1 = well_img$y1 / scale_factor,
-                    color = 0, filled = T, opacity = 0.3)
+                      color = "red",
+                      filled = T,
+                      opacity = 0.3)
 }
 
 
@@ -160,6 +107,11 @@ draw_well_grid <- function(plate_img, pp, px_per_mm, tl_corner) {
 #'
 #' @examples
 interactive_scale_wells <- function(plate_img, pp, scale_properties) {
+  cat("Manually align the wells:\n
+      use arrow keys to move the grid around\n
+      wasd keys will move the grid faster\n
+      page up and page down keys will grow and shrink the grid\n
+      Press Esc when you are finished")
   px_per_mm <- scale_properties$px_per_mm
   tl_corner <- scale_properties$tl_corner
 
@@ -203,6 +155,92 @@ interactive_scale_wells <- function(plate_img, pp, scale_properties) {
   imager::interact(f, title = "Press Esc to accept or Space to exit")
 
   return(list(px_per_mm = px_per_mm, tl_corner = tl_corner))
+}
+
+
+#' Title
+#'
+#' @param plate_img
+#' @param num_wells
+#' @param plate_type
+#'
+#' @return
+#'
+#' @examples
+calculate_scale_wells <- function(plate_img, well_properties, plate_type){
+  scale_factor <- get_img_scale_factor(plate_img)
+  scaled_img <- imager::imresize(plate_img, 1/scale_factor)
+
+  ## If 2 known well positions from the user
+  identifiable_wells <- readline(prompt = "Can you identify 2 well positions in your alignment image? y/n: ")
+  if(identifiable_wells == "y"){
+    ## 1. ask user for which wells they will input and grab coordinates
+    well_1 <- readline(prompt = "Please enter the well position of the first identifiable well (e.g. A1): ")
+    print("Now select the center point of that well.")
+    coord_1 <- imager::grabPoint(scaled_img) * scale_factor
+
+    well_2 <- readline(prompt = "Please enter the well position of the second identifiable well (e.g. A1): ")
+    print("Now select the center point of that well.")
+    coord_2 <- imager::grabPoint(scaled_img) * scale_factor
+
+    ## 2. calculate scale_properties from identified coordinates
+    ##  i. calculate theoretical distance
+    column_1 <- as.numeric(substr(well_1, start = 2, stop = nchar(well_1)))
+    column_2 <- as.numeric(substr(well_2, start = 2, stop = nchar(well_2)))
+    well_x_dist <- column_1 - column_2
+    mm_x_dist <- well_x_dist * well_properties$inter_well_space
+
+    row_1 <- substr(well_1, start = 1, stop = 1)
+    row_1 <- which(LETTERS == row_1)
+    row_2 <- substr(well_2, start = 1, stop = 1)
+    row_2 <- which(LETTERS == row_2)
+    well_y_dist <- row_1 - row_2
+    mm_y_dist <- well_y_dist * well_properties$inter_well_space
+
+    ##  ii. calculate image distance
+    img_x_dist <- coord_1[1] - coord_2[1]
+    img_y_dist <- coord_1[2] - coord_2[2]
+
+    ## TODO: 3. check for consistency between axes
+    # px_per_mm_guess_x <- img_x_dist / mm_x_dist
+    # px_per_mm_guess_y <- img_y_dist / mm_y_dist
+    px_per_mm <- ifelse(well_x_dist != 0, img_x_dist / mm_x_dist, img_y_dist / mm_y_dist)
+
+    ## 4. get top left plate corner from well position
+    ## i. calculate A1 position
+    well_1_to_col_1 <- column_1 - 1
+    well_1_to_row_A <- row_1 - 1
+
+    x_coord_A1 <- coord_1[1] - (well_1_to_col_1 * well_properties$inter_well_space * px_per_mm)
+    y_coord_A1 <- coord_1[2] - (well_1_to_row_A * well_properties$inter_well_space * px_per_mm)
+
+    tl_corner <- c(x_coord_A1 - well_properties$A1_mm[1] * px_per_mm,
+                   y_coord_A1 - well_properties$A1_mm[2] * px_per_mm)
+
+    return(list(px_per_mm = px_per_mm, tl_corner = tl_corner))
+  } else {
+  ## Else if no known coordinate positions are known
+    if (plate_type == "6-well") {
+      print("Select the centerpoint of the plate")
+      center_coord <- imager::grabPoint(scaled_img) * scale_factor
+
+      print("Select the bottom of the '1'")
+      one_coord <- imager::grabPoint(scaled_img) * scale_factor
+
+      ## calculate scale
+      x_dist <- center_coord[1] - one_coord[1]
+      px_per_mm <- x_dist / 25.4  # TODO
+
+      tl_corner <- c(center_coord[1] - px_per_mm * well_properties$sbs_dims[1] / 2 + 27.5,
+                     center_coord[2] - px_per_mm * well_properties$sbs_dims[2] / 2 + 15)
+
+      return(list(px_per_mm = px_per_mm, tl_corner = tl_corner))
+
+    } else if (plate_type == "1-well") {
+      print("We cannot currently autoscale 1-well plates. You will have to attempt this manually.")
+      return(list(px_per_mm = 15, tl_corner = c(-100, 50)))
+    }
+  }
 }
 
 
@@ -257,45 +295,6 @@ interactive_scale_lawn <- function(plate_img, pp, plate_type) {
 #' Title
 #'
 #' @param plate_img
-#' @param pp
-#' @param px_per_mm
-#' @param tl_corner
-#'
-#' @return
-#'
-#' @examples
-show_plate_overlay <- function(plate_img, pp, px_per_mm, tl_corner) {
-  well_frame <- make_well_frame(pp, px_per_mm, tl_corner)
-
-  df_plate_img <- as.data.frame(plate_img)
-
-  plt <- ggplot2::ggplot() +
-    ggplot2::geom_raster(data = df_plate_img,
-                         ggplot2::aes(.data$x, .data$y, fill = .data$value)) +
-    ggplot2::geom_rect(ggplot2::aes(xmin = tl_corner[1],
-                                    xmax = tl_corner[1] + pp$sbs_dims[1] * px_per_mm,
-                                    ymin = tl_corner[2],
-                                    ymax = tl_corner[2] + pp$sbs_dims[2] * px_per_mm),
-                       colour = "green", fill = NA) +
-    ggplot2::geom_text(ggplot2::aes(label = "A1",
-                                    tl_corner[1] + pp$A1_mm[1] * px_per_mm,
-                                    tl_corner[2] + pp$A1_mm[2] * px_per_mm)) +
-    ggplot2::geom_tile(data = well_frame,
-                       ggplot2::aes(.data$px_column, .data$px_row),
-                       colour = "blue", fill = NA) +
-    # geom_point(data = wells, aes(px_column, px_row),
-    #            colour = "blue", fill = NA) +
-    ggplot2::scale_y_continuous(trans = scales::reverse_trans()) +
-    ggplot2::scale_fill_gradient(high = "white", low = "black") +
-    ggplot2::theme_bw()
-
-  methods::show(plt)
-}
-
-
-#' Title
-#'
-#' @param plate_img
 #' @param num_wells
 #' @param experiment_type
 #' @param plate_type
@@ -307,31 +306,17 @@ get_scale <- function(plate_img, num_wells, experiment_type, plate_type) {
   scale_success <- F
   pp <- get_well_properties(num_wells)
 
-  init_colony_scale_guess <- list(px_per_mm = 15, tl_corner = c(-100, 50))
+  scale_properties <- calculate_scale_wells(plate_img, pp, plate_type)
 
-  while (!scale_success) {
-    if (experiment_type == "lawn") {
-      scale_properties <- interactive_scale_lawn(plate_img, pp, plate_type)
-    } else if (experiment_type == "colony") {
-      scale_properties <- interactive_scale_wells(plate_img, pp,
-                                                  init_colony_scale_guess)
-    }
+  well_img <- as.data.frame(plate_img, wide = "c") %>%
+    dplyr::mutate(c.2 = .data$c.1, c.3 = .data$c.1) %>%
+    tidyr::pivot_longer(cols = 3:5, names_to = "cc", values_to = "value") %>%
+    dplyr::mutate(cc = as.numeric(as.factor(.data$cc))) %>%
+    imager::as.cimg()
 
-    # check if scaling looks good
-    print("Please wait for some processing...")
-
-    imager::display(draw_wells(plate_img, pp,
-                               scale_properties$px_per_mm,
-                               scale_properties$tl_corner))
-
-    success_in <- readline(prompt = "Does the grid align correctly? y/n: ")
-
-    if (success_in == "y") {
-      scale_success <- T
-    } else {
-      init_colony_scale_guess <- scale_properties
-    }
-  }
+  print(scale_properties)
+  print("Please check for correct alignment")
+  scale_properties <- interactive_scale_wells(well_img, pp, scale_properties)
 
   return(scale_properties)
 }
@@ -493,7 +478,7 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
   print("Created digitial microtitre plate")
 
   ## make well mask
-  d <- (pp$inter_well_space * scale_properties$px_per_mm) / 2.2
+  d <- (pp$inter_well_space * scale_properties$px_per_mm) / 3
   stencil <- expand.grid(dx = -d:d,
                          dy = -d:d)
   circ_stencil <- round(subset(stencil, (dx^2 + dy^2) < d^2))
