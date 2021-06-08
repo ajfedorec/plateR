@@ -160,6 +160,31 @@ interactive_scale_wells <- function(plate_img, pp, scale_properties) {
 
 #' Title
 #'
+#' @param well
+#'
+#' @return
+#'
+#' @examples
+well_to_row_col <- function(well){
+  row_Ls <- grep("[A-Z]", unlist(strsplit(well, "")), value = T)
+  num_letters <- length(row_Ls)
+
+  # row_L <- substr(well, start = 1, stop = num_letters)
+
+  if(num_letters == 1){
+    row_N <- which(LETTERS == row_Ls[1])
+  } else if(num_letters == 2){
+    row_N <- which(LETTERS == row_Ls[1]) * 26 + which(LETTERS == row_Ls[2])
+  }
+
+  col <- as.numeric(substr(well, start = num_letters + 1, stop = nchar(well)))
+
+  return(list(row=row_N, col=col))
+}
+
+
+#' Title
+#'
 #' @param plate_img
 #' @param num_wells
 #' @param plate_type
@@ -176,24 +201,24 @@ calculate_scale_wells <- function(plate_img, well_properties, plate_type){
   if(identifiable_wells == "y"){
     ## 1. ask user for which wells they will input and grab coordinates
     well_1 <- readline(prompt = "Please enter the well position of the first identifiable well (e.g. A1): ")
+    well_1 <- well_to_row_col(well_1)
     print("Now select the center point of that well.")
     coord_1 <- imager::grabPoint(scaled_img) * scale_factor
 
     well_2 <- readline(prompt = "Please enter the well position of the second identifiable well (e.g. A1): ")
+    well_2 <- well_to_row_col(well_2)
     print("Now select the center point of that well.")
     coord_2 <- imager::grabPoint(scaled_img) * scale_factor
 
     ## 2. calculate scale_properties from identified coordinates
     ##  i. calculate theoretical distance
-    column_1 <- as.numeric(substr(well_1, start = 2, stop = nchar(well_1)))
-    column_2 <- as.numeric(substr(well_2, start = 2, stop = nchar(well_2)))
+    column_1 <- well_1$col
+    column_2 <- well_2$col
     well_x_dist <- column_1 - column_2
     mm_x_dist <- well_x_dist * well_properties$inter_well_space
 
-    row_1 <- substr(well_1, start = 1, stop = 1)
-    row_1 <- which(LETTERS == row_1)
-    row_2 <- substr(well_2, start = 1, stop = 1)
-    row_2 <- which(LETTERS == row_2)
+    row_1 <- well_1$row
+    row_2 <- well_2$row
     well_y_dist <- row_1 - row_2
     mm_y_dist <- well_y_dist * well_properties$inter_well_space
 
