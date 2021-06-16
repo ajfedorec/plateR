@@ -474,7 +474,7 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
 
   # Use single image to get pixel-to-well mapping ---------------------------
 
-  align_img <- imager::load.image(align_filename)
+  align_img <- imager::load.image(file.path(dir_path, align_filename))
   if (invert) {
     align_img <- invert_image(align_img)  # rotate image if upside down
   }
