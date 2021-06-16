@@ -468,7 +468,6 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
                             layout_csv, experiment_type="colony", normalise=F,
                             plate_type="6-well", num_wells=384, px_per_mm=NA,
                             tl_corner=NA, in_parallel=FALSE, img_settings_list) {
-  setwd(dir_path)
 
   img_settings_df <- as.data.frame(split(unlist(img_settings_list),
                                          names(unlist(img_settings_list))))
