@@ -244,7 +244,7 @@ calculate_scale_wells <- function(plate_img, well_properties, plate_type){
 
     return(list(px_per_mm = px_per_mm, tl_corner = tl_corner))
   } else {
-  ## Else if no known coordinate positions are known
+    ## Else if no known coordinate positions are known
     if (plate_type == "6-well") {
       print("Select the centerpoint of the plate")
       center_coord <- imager::grabPoint(scaled_img) * scale_factor
@@ -327,7 +327,7 @@ interactive_scale_lawn <- function(plate_img, pp, plate_type) {
 #' @return
 #'
 #' @examples
-get_scale <- function(plate_img, num_wells, experiment_type, plate_type) {
+get_scale_and_location <- function(plate_img, num_wells, experiment_type, plate_type) {
   scale_success <- F
   pp <- get_well_properties(num_wells)
 
@@ -341,6 +341,40 @@ get_scale <- function(plate_img, num_wells, experiment_type, plate_type) {
 
   print(scale_properties)
   print("Please check for correct alignment")
+  scale_properties <- interactive_scale_wells(well_img, pp, scale_properties)
+
+  return(scale_properties)
+}
+
+
+#' Title
+#'
+#' @param plate_img
+#' @param num_wells
+#' @param experiment_type
+#' @param plate_type
+#'
+#' @return
+#'
+#' @examples
+get_scale_or_location <- function(plate_img, num_wells, px_per_mm, tl_corner) {
+  pp <- get_well_properties(num_wells)
+
+  if(is.na(px_per_mm)){
+    px_per_mm <- 15
+  }
+  if(is.na(tl_corner)){
+    tl_corner <- c(0, 0)
+  }
+  scale_properties <- list(px_per_mm = px_per_mm, tl_corner = tl_corner)
+
+  well_img <- as.data.frame(plate_img, wide = "c") %>%
+    dplyr::mutate(c.2 = .data$c.1, c.3 = .data$c.1) %>%
+    tidyr::pivot_longer(cols = 3:5, names_to = "cc", values_to = "value") %>%
+    dplyr::mutate(cc = as.numeric(as.factor(.data$cc))) %>%
+    imager::as.cimg()
+
+  print("Please correct alignment")
   scale_properties <- interactive_scale_wells(well_img, pp, scale_properties)
 
   return(scale_properties)
@@ -482,11 +516,16 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
     align_img <- imager::imrotate(align_img, 180)  # rotate image if upside down
   }
 
-  if (is.na(px_per_mm) | is.na(tl_corner)) {
-    scale_properties <- get_scale(plate_img = align_img,
-                                  num_wells,
-                                  experiment_type,
-                                  plate_type)
+  if (is.na(px_per_mm) & is.na(tl_corner)) {
+    scale_properties <- get_scale_and_location(plate_img = align_img,
+                                               num_wells,
+                                               experiment_type,
+                                               plate_type)
+  } else if(is.na(px_per_mm) | is.na(tl_corner)){
+    scale_properties <- get_scale_or_location(plate_img = align_img,
+                                              num_wells,
+                                              px_per_mm,
+                                              tl_corner)
   } else {
     scale_properties <- list(px_per_mm=px_per_mm, tl_corner=tl_corner)
   }
