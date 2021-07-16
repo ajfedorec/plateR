@@ -166,7 +166,7 @@ interactive_scale_wells <- function(plate_img, pp, scale_properties) {
 #'
 #' @examples
 well_to_row_col <- function(well){
-  row_Ls <- grep("[A-Z]", unlist(strsplit(well, "")), value = T)
+  row_Ls <- grep("[a-zA-Z]", unlist(strsplit(well, "")), value = T)
   num_letters <- length(row_Ls)
 
   # row_L <- substr(well, start = 1, stop = num_letters)
@@ -174,7 +174,8 @@ well_to_row_col <- function(well){
   if(num_letters == 1){
     row_N <- which(LETTERS == row_Ls[1])
   } else if(num_letters == 2){
-    row_N <- which(LETTERS == row_Ls[1]) * 26 + which(LETTERS == row_Ls[2])
+    row_N <- (which(LETTERS == row_Ls[1]) - 1) * 4 + which(letters == row_Ls[2])
+    # row_N <- which(LETTERS == row_Ls[1]) * 26 + which(letters == row_Ls[2])
   }
 
   col <- as.numeric(substr(well, start = num_letters + 1, stop = nchar(well)))
@@ -200,12 +201,12 @@ calculate_scale_wells <- function(plate_img, well_properties, plate_type){
   identifiable_wells <- readline(prompt = "Can you identify 2 well positions in your alignment image? y/n: ")
   if(identifiable_wells == "y"){
     ## 1. ask user for which wells they will input and grab coordinates
-    well_1 <- readline(prompt = "Please enter the well position of the first identifiable well (e.g. A1): ")
+    well_1 <- readline(prompt = "Please enter the well position of the first identifiable well (e.g. A1 or Cb24): ")
     well_1 <- well_to_row_col(well_1)
     print("Now select the center point of that well.")
     coord_1 <- imager::grabPoint(scaled_img) * scale_factor
 
-    well_2 <- readline(prompt = "Please enter the well position of the second identifiable well (e.g. A1): ")
+    well_2 <- readline(prompt = "Please enter the well position of the second identifiable well (e.g. A1 or Cb24): ")
     well_2 <- well_to_row_col(well_2)
     print("Now select the center point of that well.")
     coord_2 <- imager::grabPoint(scaled_img) * scale_factor
