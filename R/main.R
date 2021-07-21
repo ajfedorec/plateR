@@ -398,13 +398,17 @@ get_img_settings <- function(img_idx, img_settings_df){
 #' @param circ_stencil
 #' @param rotate
 #' @param normalise
+#' @param blur
 #'
 #' @return
 #'
 #' @examples
 summarise_image <- function(img_file, normalise, invert, rotate, well_frame, img_idx,
-                            img_settings_df, circ_stencil) {
+                            img_settings_df, circ_stencil, blur) {
   img <- imager::load.image(img_file)
+  if(!is.na(blur)){
+    img <- imager::isoblur(img, sigma = blur)
+  }
 
   # normalise by negating image from same set at iteration 0
   if(normalise){
@@ -414,6 +418,9 @@ summarise_image <- function(img_file, normalise, invert, rotate, well_frame, img
                                                      side = "left", pad = "0"),
                                     ".png", sep = ""))
     neg_img <- imager::load.image(neg_img_file)
+    if(!is.na(blur)){
+      neg_img <- imager::isoblur(neg_img, sigma = blur)
+    }
     img <- img - neg_img
   }
 
@@ -467,6 +474,7 @@ summarise_image <- function(img_file, normalise, invert, rotate, well_frame, img
 #' `img_settings_list = list(c(panel="blue", exposure=20000, intensity=1),c(panel="red", exposure=4000, intensity=0.7))`
 #' @param rotate Boolean flag. Set to {TRUE} if the images are upside-down i.e. row A on bottom of image
 #' @param normalise Attempts to remove background. Negates pixel values in the first iteration of images, from all images.
+#' @param blur Apply a Gaussian filter to blur the image. If NA, no blur is applied. If numeric, the value is used as the sigma for the Gaussian filter.
 #'
 #' @return
 #' @export
@@ -479,7 +487,7 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
                             layout_csv, experiment_type="colony", normalise=F,
                             plate_type="6-well", num_wells=384, px_per_mm=NA,
                             tl_corner=NA, well_ratio=NA, in_parallel=FALSE,
-                            img_settings_list) {
+                            blur = NA, img_settings_list) {
 
   img_settings_df <- as.data.frame(split(unlist(img_settings_list),
                                          names(unlist(img_settings_list))))
@@ -545,7 +553,7 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
 
       this_frame <- summarise_image(img_file, normalise, invert, rotate,
                                     well_frame, img_idx, img_settings_df,
-                                    circ_stencil)
+                                    circ_stencil, blur)
 
       all_data <- rbind(all_data, this_frame)
     }
@@ -573,7 +581,8 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
                                                                  well_frame,
                                                                  img_idx,
                                                                  img_settings_df,
-                                                                 circ_stencil)
+                                                                 circ_stencil,
+                                                                 blur)
                                  }
   }
 

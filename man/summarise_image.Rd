@@ -12,11 +12,12 @@ summarise_image(
   well_frame,
   img_idx,
   img_settings_df,
-  circ_stencil
+  circ_stencil,
+  blur
 )
 }
 \arguments{
-\item{normalise}{}
+\item{blur}{}
 }
 \value{
 

@@ -18,6 +18,7 @@ process_img_dir(
   tl_corner = NA,
   well_ratio = NA,
   in_parallel = FALSE,
+  blur = NA,
   img_settings_list
 )
 }
@@ -47,6 +48,8 @@ process_img_dir(
 \item{well_ratio}{Proportion of space taken up by each "well". Can be scaled interactively.}
 
 \item{in_parallel}{process images in parallel (only available for R >= 4.0)}
+
+\item{blur}{Apply a Gaussian filter to blur the image. If NA, no blur is applied. If numeric, the value is used as the sigma for the Gaussian filter.}
 
 \item{img_settings_list}{a list of named vectors with meta-data for images in the order they were taken i.e.
 `img_settings_list = list(c(panel="blue", exposure=20000, intensity=1),c(panel="red", exposure=4000, intensity=0.7))`}
