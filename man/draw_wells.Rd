@@ -4,10 +4,10 @@
 \alias{draw_wells}
 \title{Title}
 \usage{
-draw_wells(plate_img, pp, px_per_mm, tl_corner)
+draw_wells(plate_img, pp, px_per_mm, tl_corner, well_ratio)
 }
 \arguments{
-\item{tl_corner}{}
+\item{well_ratio}{}
 }
 \value{
 

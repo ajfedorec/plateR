@@ -1,26 +1,17 @@
+
 #' Title
 #'
-#' @param pp
-#' @param px_per_mm
-#' @param tl_corner
+#' @param img
 #'
 #' @return
 #'
 #' @examples
-make_well_frame <- function(pp, px_per_mm, tl_corner) {
-  ## make table of all well locations in the image
-  wells <- expand.grid(well_column = 1:pp$plate_dims[1],
-                       well_row = 1:pp$plate_dims[2])
+invert_image <- function(img){
+  map_invert <- function(x,y) list(x=x, y=(y-imager::height(img))*-1)
 
-  ## Get A1 position on image
-  A1_px <- c(pp$A1_mm[1] * px_per_mm + tl_corner[1],
-             pp$A1_mm[2] * px_per_mm + tl_corner[2])
+  inv_img <- imager::imwarp(img, map_invert)
 
-  ## get all well positions on image
-  wells$px_column <- round(A1_px[1] + pp$inter_well_space * px_per_mm * (wells$well_column - 1))
-  wells$px_row <- round(A1_px[2] + pp$inter_well_space * px_per_mm * (wells$well_row - 1))
-
-  return(wells)
+  return(inv_img)
 }
 
 
@@ -72,94 +63,6 @@ get_img_scale_factor <- function(img){
 
 #' Title
 #'
-#' @param plate_img
-#' @param pp
-#' @param px_per_mm
-#' @param tl_corner
-#'
-#' @return
-#'
-#' @examples
-draw_wells <- function(plate_img, pp, px_per_mm, tl_corner) {
-  d <- (pp$inter_well_space * px_per_mm) / 3
-
-  ## make table of all well locations in the image
-  wells <- make_well_frame(pp, px_per_mm, tl_corner)
-
-  scale_factor <- get_img_scale_factor(plate_img)
-  imager::draw_circle(imager::imresize(plate_img, 1/scale_factor),
-                      x = wells$px_column / scale_factor,
-                      y = wells$px_row / scale_factor,
-                      radius = d / scale_factor,
-                      color = "red",
-                      filled = T,
-                      opacity = 0.3)
-}
-
-
-#' Title
-#'
-#' @param plate_img
-#' @param pp
-#' @param scale_properties
-#'
-#' @return
-#'
-#' @examples
-interactive_scale_wells <- function(plate_img, pp, scale_properties) {
-  cat("Manually align the wells:\n
-      use arrow keys to move the grid around\n
-      wasd keys will move the grid faster\n
-      page up and page down keys will grow and shrink the grid\n
-      Press Esc when you are finished")
-  px_per_mm <- scale_properties$px_per_mm
-  tl_corner <- scale_properties$tl_corner
-
-  f <- function(state) {
-    if (state$key == "space") {
-      stop("User exited application; spacebar pressed")
-    }
-    if (state$key == "arrowleft") {
-      tl_corner <<- c(tl_corner[1] - 1, tl_corner[2])
-    }
-    if (state$key == "arrowright") {
-      tl_corner <<- c(tl_corner[1] + 1, tl_corner[2])
-    }
-    if (state$key == "arrowup") {
-      tl_corner <<- c(tl_corner[1], tl_corner[2] - 1)
-    }
-    if (state$key == "arrowdown") {
-      tl_corner <<- c(tl_corner[1], tl_corner[2] + 1)
-    }
-    if (state$key == "a") {
-      tl_corner <<- c(tl_corner[1] - 10, tl_corner[2])
-    }
-    if (state$key == "d") {
-      tl_corner <<- c(tl_corner[1] + 10, tl_corner[2])
-    }
-    if (state$key == "w") {
-      tl_corner <<- c(tl_corner[1], tl_corner[2] - 10)
-    }
-    if (state$key == "s") {
-      tl_corner <<- c(tl_corner[1], tl_corner[2] + 10)
-    }
-    if (state$key == "pageup") {
-      px_per_mm <<- px_per_mm + min(px_per_mm * 0.01, 0.1)
-    }
-    if (state$key == "pagedown") {
-      px_per_mm <<- px_per_mm - min(px_per_mm * 0.01, 0.1)
-    }
-
-    draw_wells(plate_img, pp, px_per_mm, tl_corner)
-  }
-  imager::interact(f, title = "Press Esc to accept or Space to exit")
-
-  return(list(px_per_mm = px_per_mm, tl_corner = tl_corner))
-}
-
-
-#' Title
-#'
 #' @param well
 #'
 #' @return
@@ -169,13 +72,10 @@ well_to_row_col <- function(well){
   row_Ls <- grep("[a-zA-Z]", unlist(strsplit(well, "")), value = T)
   num_letters <- length(row_Ls)
 
-  # row_L <- substr(well, start = 1, stop = num_letters)
-
   if(num_letters == 1){
     row_N <- which(LETTERS == row_Ls[1])
   } else if(num_letters == 2){
     row_N <- (which(LETTERS == row_Ls[1]) - 1) * 4 + which(letters == row_Ls[2])
-    # row_N <- which(LETTERS == row_Ls[1]) * 26 + which(letters == row_Ls[2])
   }
 
   col <- as.numeric(substr(well, start = num_letters + 1, stop = nchar(well)))
@@ -187,8 +87,8 @@ well_to_row_col <- function(well){
 #' Title
 #'
 #' @param plate_img
-#' @param num_wells
 #' @param plate_type
+#' @param well_properties
 #'
 #' @return
 #'
@@ -228,8 +128,6 @@ calculate_scale_wells <- function(plate_img, well_properties, plate_type){
     img_y_dist <- coord_1[2] - coord_2[2]
 
     ## TODO: 3. check for consistency between axes
-    # px_per_mm_guess_x <- img_x_dist / mm_x_dist
-    # px_per_mm_guess_y <- img_y_dist / mm_y_dist
     px_per_mm <- ifelse(well_x_dist != 0, img_x_dist / mm_x_dist, img_y_dist / mm_y_dist)
 
     ## 4. get top left plate corner from well position
@@ -272,49 +170,134 @@ calculate_scale_wells <- function(plate_img, well_properties, plate_type){
 
 #' Title
 #'
-#' @param plate_img
 #' @param pp
-#' @param plate_type
+#' @param px_per_mm
+#' @param tl_corner
 #'
 #' @return
 #'
 #' @examples
-interactive_scale_lawn <- function(plate_img, pp, plate_type) {
+make_well_frame <- function(pp, px_per_mm, tl_corner) {
+  ## make table of all well locations in the image
+  wells <- expand.grid(well_column = 1:pp$plate_dims[1],
+                       well_row = 1:pp$plate_dims[2])
+
+  ## Get A1 position on image
+  A1_px <- c(pp$A1_mm[1] * px_per_mm + tl_corner[1],
+             pp$A1_mm[2] * px_per_mm + tl_corner[2])
+
+  ## get all well positions on image
+  wells$px_column <- round(A1_px[1] + pp$inter_well_space * px_per_mm * (wells$well_column - 1))
+  wells$px_row <- round(A1_px[2] + pp$inter_well_space * px_per_mm * (wells$well_row - 1))
+
+  return(wells)
+}
+
+
+#' Title
+#'
+#' @param plate_img
+#' @param pp
+#' @param px_per_mm
+#' @param tl_corner
+#' @param well_ratio
+#'
+#' @return
+#'
+#' @examples
+draw_wells <- function(plate_img, pp, px_per_mm, tl_corner, well_ratio) {
+  d <- (pp$inter_well_space * px_per_mm) * well_ratio / 2
+
+  ## make table of all well locations in the image
+  wells <- make_well_frame(pp, px_per_mm, tl_corner)
+
   scale_factor <- get_img_scale_factor(plate_img)
-  scaled_img <- imager::imresize(plate_img, 1/scale_factor)
+  imager::draw_circle(imager::imresize(plate_img, 1/scale_factor),
+                      x = wells$px_column / scale_factor,
+                      y = wells$px_row / scale_factor,
+                      radius = d / scale_factor,
+                      color = "red",
+                      filled = T,
+                      opacity = 0.3)
+}
 
-  if (plate_type == "6-well") {
-    print("Select the centerpoint of the plate")
-    center_coord <- imager::grabPoint(scaled_img) * scale_factor
 
-    print("Select the bottom of the '1'")
-    one_coord <- imager::grabPoint(scaled_img) * scale_factor
-
-    ## calculate scale
-    x_dist <- center_coord[1] - one_coord[1]
-    px_per_mm <- x_dist / 25.4  # TODO
-
-    tl_corner <- c(center_coord[1] - px_per_mm * pp$sbs_dims[1] / 2 + 27.5,
-                   center_coord[2] - px_per_mm * pp$sbs_dims[2] / 2 + 15)
-
-    return(list(px_per_mm = px_per_mm, tl_corner = tl_corner))
-
-  } else if (plate_type == "1-well") {
-    print("Select well A1")
-    A1_coord <- imager::grabPoint(scaled_img) * scale_factor
-
-    print("Select well A24")
-    A24_coord <- imager::grabPoint(scaled_img) * scale_factor
-
-    ## calculate scale
-    x_dist <- A24_coord[1] - A1_coord[1]
-    px_per_mm <- x_dist / (pp$inter_well_space * (pp$plate_dims[1] - 1))
-
-    tl_corner <- c(A1_coord[1] - pp$A1_mm[1] * px_per_mm,
-                   A1_coord[2] - pp$A1_mm[2] * px_per_mm)
-
-    return(list(px_per_mm = px_per_mm, tl_corner = tl_corner))
+#' Title
+#'
+#' @param plate_img
+#' @param pp
+#' @param scale_properties
+#'
+#' @return
+#'
+#' @examples
+interactive_scale_wells <- function(plate_img, pp, scale_properties) {
+  cat("Manually align the wells:\n
+      use arrow keys to move the grid around\n
+      wasd keys will move the grid faster\n
+      page up and page down keys will grow and shrink the grid\n
+      1 and 2 keys will shrink and grow the well size\n
+      Press Esc when you are finished\n")
+  px_per_mm <- scale_properties$px_per_mm
+  tl_corner <- scale_properties$tl_corner
+  if(is.na(scale_properties$well_ratio)){
+    well_ratio <- 0.5
+  } else {
+    well_ratio <- scale_properties$well_ratio
   }
+
+  f <- function(state) {
+    if (state$key == "space") {
+      stop("User exited application; spacebar pressed")
+    }
+    if (state$key == "arrowleft") {
+      tl_corner <<- c(tl_corner[1] - 1, tl_corner[2])
+    }
+    if (state$key == "arrowright") {
+      tl_corner <<- c(tl_corner[1] + 1, tl_corner[2])
+    }
+    if (state$key == "arrowup") {
+      tl_corner <<- c(tl_corner[1], tl_corner[2] - 1)
+    }
+    if (state$key == "arrowdown") {
+      tl_corner <<- c(tl_corner[1], tl_corner[2] + 1)
+    }
+    if (state$key == "a") {
+      tl_corner <<- c(tl_corner[1] - 10, tl_corner[2])
+    }
+    if (state$key == "d") {
+      tl_corner <<- c(tl_corner[1] + 10, tl_corner[2])
+    }
+    if (state$key == "w") {
+      tl_corner <<- c(tl_corner[1], tl_corner[2] - 10)
+    }
+    if (state$key == "s") {
+      tl_corner <<- c(tl_corner[1], tl_corner[2] + 10)
+    }
+    if (state$key == "pageup") {
+      px_per_mm <<- px_per_mm + min(px_per_mm * 0.01, 0.1)
+      print(paste("px_per_mm: ", px_per_mm))
+    }
+    if (state$key == "pagedown") {
+      px_per_mm <<- px_per_mm - min(px_per_mm * 0.01, 0.1)
+      print(paste("px_per_mm: ", px_per_mm))
+    }
+    if (state$key == "2") {
+      well_ratio <<- well_ratio + 0.02
+      print(paste("well_ratio: ", well_ratio))
+    }
+    if (state$key == "1") {
+      well_ratio <<- well_ratio - 0.02
+      print(paste("well_ratio: ", well_ratio))
+    }
+
+    draw_wells(plate_img, pp, px_per_mm, tl_corner, well_ratio)
+  }
+
+  imager::interact(f,
+                   title = "Press Esc to accept or Space to exit")
+
+  return(list(px_per_mm = px_per_mm, tl_corner = tl_corner, well_ratio = well_ratio))
 }
 
 
@@ -324,15 +307,17 @@ interactive_scale_lawn <- function(plate_img, pp, plate_type) {
 #' @param num_wells
 #' @param experiment_type
 #' @param plate_type
+#' @param well_ratio
 #'
 #' @return
 #'
 #' @examples
-get_scale_and_location <- function(plate_img, num_wells, experiment_type, plate_type) {
+get_scale_and_location <- function(plate_img, num_wells, experiment_type, plate_type, well_ratio) {
   scale_success <- F
   pp <- get_well_properties(num_wells)
 
   scale_properties <- calculate_scale_wells(plate_img, pp, plate_type)
+  scale_properties <- c(scale_properties, well_ratio=well_ratio)
 
   well_img <- as.data.frame(plate_img, wide = "c") %>%
     dplyr::mutate(c.2 = .data$c.1, c.3 = .data$c.1) %>%
@@ -351,14 +336,15 @@ get_scale_and_location <- function(plate_img, num_wells, experiment_type, plate_
 #' Title
 #'
 #' @param plate_img
+#' @param px_per_mm
+#' @param tl_corner
+#' @param well_ratio
 #' @param num_wells
-#' @param experiment_type
-#' @param plate_type
 #'
 #' @return
 #'
 #' @examples
-get_scale_or_location <- function(plate_img, num_wells, px_per_mm, tl_corner) {
+get_scale_or_location <- function(plate_img, num_wells, px_per_mm, tl_corner, well_ratio) {
   pp <- get_well_properties(num_wells)
 
   if(is.na(px_per_mm)){
@@ -367,7 +353,10 @@ get_scale_or_location <- function(plate_img, num_wells, px_per_mm, tl_corner) {
   if(is.na(tl_corner)){
     tl_corner <- c(0, 0)
   }
-  scale_properties <- list(px_per_mm = px_per_mm, tl_corner = tl_corner)
+  if(is.na(well_ratio)){
+    well_ratio <- 0.5
+  }
+  scale_properties <- list(px_per_mm = px_per_mm, tl_corner = tl_corner, well_ratio = well_ratio)
 
   well_img <- as.data.frame(plate_img, wide = "c") %>%
     dplyr::mutate(c.2 = .data$c.1, c.3 = .data$c.1) %>%
@@ -408,6 +397,7 @@ get_img_settings <- function(img_idx, img_settings_df){
 #' @param img_settings_df
 #' @param circ_stencil
 #' @param rotate
+#' @param normalise
 #'
 #' @return
 #'
@@ -460,22 +450,6 @@ summarise_image <- function(img_file, normalise, invert, rotate, well_frame, img
 }
 
 
-#' Title
-#'
-#' @param img
-#'
-#' @return
-#'
-#' @examples
-invert_image <- function(img){
-  map_invert <- function(x,y) list(x=x, y=(y-imager::height(img))*-1)
-
-  inv_img <- imager::imwarp(img, map_invert)
-
-  return(inv_img)
-}
-
-
 #' Process a folder of images
 #'
 #' @param dir_path path to directory containing plate images (.png images only)
@@ -487,10 +461,12 @@ invert_image <- function(img){
 #' @param num_wells Plate size used for output positions: 96, 384 or 1536
 #' @param px_per_mm If you already know the `px_per_mm` value (from previous alignment)
 #' @param tl_corner If you already know the `tl_corner` values (from previous alignment)
+#' @param well_ratio Proportion of space taken up by each "well". Can be scaled interactively.
 #' @param in_parallel process images in parallel (only available for R >= 4.0)
 #' @param img_settings_list a list of named vectors with meta-data for images in the order they were taken i.e.
 #' `img_settings_list = list(c(panel="blue", exposure=20000, intensity=1),c(panel="red", exposure=4000, intensity=0.7))`
 #' @param rotate Boolean flag. Set to {TRUE} if the images are upside-down i.e. row A on bottom of image
+#' @param normalise Attempts to remove background. Negates pixel values in the first iteration of images, from all images.
 #'
 #' @return
 #' @export
@@ -502,7 +478,8 @@ invert_image <- function(img){
 process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
                             layout_csv, experiment_type="colony", normalise=F,
                             plate_type="6-well", num_wells=384, px_per_mm=NA,
-                            tl_corner=NA, in_parallel=FALSE, img_settings_list) {
+                            tl_corner=NA, well_ratio=NA, in_parallel=FALSE,
+                            img_settings_list) {
 
   img_settings_df <- as.data.frame(split(unlist(img_settings_list),
                                          names(unlist(img_settings_list))))
@@ -519,16 +496,18 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
 
   if (is.na(px_per_mm) & is.na(tl_corner)) {
     scale_properties <- get_scale_and_location(plate_img = align_img,
-                                               num_wells,
-                                               experiment_type,
-                                               plate_type)
-  } else if(is.na(px_per_mm) | is.na(tl_corner)){
+                                               num_wells = num_wells,
+                                               experiment_type = experiment_type,
+                                               plate_type = plate_type,
+                                               well_ratio = well_ratio)
+  } else if(is.na(px_per_mm) | is.na(tl_corner) | is.na(well_ratio)){
     scale_properties <- get_scale_or_location(plate_img = align_img,
-                                              num_wells,
-                                              px_per_mm,
-                                              tl_corner)
+                                              num_wells = num_wells,
+                                              px_per_mm = px_per_mm,
+                                              tl_corner = tl_corner,
+                                              well_ratio = well_ratio)
   } else {
-    scale_properties <- list(px_per_mm=px_per_mm, tl_corner=tl_corner)
+    scale_properties <- list(px_per_mm=px_per_mm, tl_corner=tl_corner, well_ratio=well_ratio)
   }
   print(scale_properties)
 
@@ -542,7 +521,7 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
   print("Created digitial microtitre plate")
 
   ## make well mask
-  d <- (pp$inter_well_space * scale_properties$px_per_mm) / 3
+  d <- (pp$inter_well_space * scale_properties$px_per_mm) * scale_properties$well_ratio / 2
   stencil <- expand.grid(dx = -d:d,
                          dy = -d:d)
   circ_stencil <- round(subset(stencil, (dx^2 + dy^2) < d^2))

@@ -16,6 +16,7 @@ process_img_dir(
   num_wells = 384,
   px_per_mm = NA,
   tl_corner = NA,
+  well_ratio = NA,
   in_parallel = FALSE,
   img_settings_list
 )
@@ -33,6 +34,8 @@ process_img_dir(
 
 \item{experiment_type}{"colony" or "lawn"}
 
+\item{normalise}{Attempts to remove background. Negates pixel values in the first iteration of images, from all images.}
+
 \item{plate_type}{"6-well" or "1-well"}
 
 \item{num_wells}{Plate size used for output positions: 96, 384 or 1536}
@@ -40,6 +43,8 @@ process_img_dir(
 \item{px_per_mm}{If you already know the `px_per_mm` value (from previous alignment)}
 
 \item{tl_corner}{If you already know the `tl_corner` values (from previous alignment)}
+
+\item{well_ratio}{Proportion of space taken up by each "well". Can be scaled interactively.}
 
 \item{in_parallel}{process images in parallel (only available for R >= 4.0)}
 

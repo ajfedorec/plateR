@@ -4,10 +4,16 @@
 \alias{get_scale_and_location}
 \title{Title}
 \usage{
-get_scale_and_location(plate_img, num_wells, experiment_type, plate_type)
+get_scale_and_location(
+  plate_img,
+  num_wells,
+  experiment_type,
+  plate_type,
+  well_ratio
+)
 }
 \arguments{
-\item{plate_type}{}
+\item{well_ratio}{}
 }
 \value{
 

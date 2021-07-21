@@ -7,7 +7,7 @@
 calculate_scale_wells(plate_img, well_properties, plate_type)
 }
 \arguments{
-\item{plate_type}{}
+\item{well_properties}{}
 }
 \value{
 

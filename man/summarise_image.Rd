@@ -16,7 +16,7 @@ summarise_image(
 )
 }
 \arguments{
-\item{rotate}{}
+\item{normalise}{}
 }
 \value{
 
