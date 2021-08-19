@@ -9,14 +9,15 @@ process_img_dir(
   align_filename,
   invert = F,
   rotate = F,
-  layout_csv,
   experiment_type = "colony",
   normalise = F,
+  colony_only = T,
   plate_type = "6-well",
   num_wells = 384,
   px_per_mm = NA,
   tl_corner = NA,
   well_ratio = NA,
+  deg_rotation = NA,
   in_parallel = FALSE,
   blur = NA,
   img_settings_list
@@ -31,11 +32,11 @@ process_img_dir(
 
 \item{rotate}{Boolean flag. Set to {TRUE} if the images are upside-down i.e. row A on bottom of image}
 
-\item{layout_csv}{.csv with metadata for each position on the plate}
-
 \item{experiment_type}{"colony" or "lawn"}
 
 \item{normalise}{Attempts to remove background. Negates pixel values in the first iteration of images, from all images.}
+
+\item{colony_only}{Boolean flag. If true, select only the 25% brightest (for blue panel) or darkest (for red panel) pixels.}
 
 \item{plate_type}{"6-well" or "1-well"}
 
@@ -46,6 +47,8 @@ process_img_dir(
 \item{tl_corner}{If you already know the `tl_corner` values (from previous alignment)}
 
 \item{well_ratio}{Proportion of space taken up by each "well". Can be scaled interactively.}
+
+\item{deg_rotation}{If you already know the `deg_rotation` values (from previous alignment)}
 
 \item{in_parallel}{process images in parallel (only available for R >= 4.0)}
 

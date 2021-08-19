@@ -4,7 +4,14 @@
 \alias{get_scale_or_location}
 \title{Title}
 \usage{
-get_scale_or_location(plate_img, num_wells, px_per_mm, tl_corner, well_ratio)
+get_scale_or_location(
+  plate_img,
+  num_wells,
+  px_per_mm,
+  tl_corner,
+  deg_rotation,
+  well_ratio
+)
 }
 \arguments{
 \item{num_wells}{}

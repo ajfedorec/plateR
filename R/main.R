@@ -430,7 +430,7 @@ get_img_settings <- function(img_idx, img_settings_df){
 #' @examples
 summarise_image <- function(img_file, normalise, invert, rotate, well_frame,
                             img_idx, img_settings_df, circ_stencil, blur,
-                            scale_properties) {
+                            scale_properties, colony_only) {
   img <- imager::load.image(img_file)
   if(!is.na(blur)){
     img <- imager::isoblur(img, sigma = blur)
@@ -474,7 +474,15 @@ summarise_image <- function(img_file, normalise, invert, rotate, well_frame,
                                            y = .data$px_row)) %>%
     dplyr::mutate(value = list(imager::get.stencil(img, circ_stencil,
                                                    x = .data$px_column,
-                                                   y = .data$px_row))) %>%
+                                                   y = .data$px_row)))
+
+  if(colony_only){
+    this_frame <- this_frame %>%
+      dplyr::mutate(value = dplyr::if_else(img_settings$panel == "blue",
+                                           list(sort(.data$value, decreasing = T)[1:(length(.data$value)/4)]),
+                                           list(sort(.data$value, decreasing = F)[1:(length(.data$value)/4)])))
+  }
+  this_frame <- this_frame %>%
     dplyr::mutate(mean = mean(.data$value),
                   median = median(.data$value),
                   sd = sd(.data$value),
@@ -492,7 +500,6 @@ summarise_image <- function(img_file, normalise, invert, rotate, well_frame,
 #' @param dir_path path to directory containing plate images (.png images only)
 #' @param align_filename filename of image used to align well grid
 #' @param invert Boolean flag. Set to {TRUE} if the plate is inverted in the imager
-#' @param layout_csv .csv with metadata for each position on the plate
 #' @param experiment_type "colony" or "lawn"
 #' @param plate_type "6-well" or "1-well"
 #' @param num_wells Plate size used for output positions: 96, 384 or 1536
@@ -505,6 +512,8 @@ summarise_image <- function(img_file, normalise, invert, rotate, well_frame,
 #' @param rotate Boolean flag. Set to {TRUE} if the images are upside-down i.e. row A on bottom of image
 #' @param normalise Attempts to remove background. Negates pixel values in the first iteration of images, from all images.
 #' @param blur Apply a Gaussian filter to blur the image. If NA, no blur is applied. If numeric, the value is used as the sigma for the Gaussian filter.
+#' @param colony_only Boolean flag. If true, select only the 25% brightest (for blue panel) or darkest (for red panel) pixels.
+#' @param deg_rotation If you already know the `deg_rotation` values (from previous alignment)
 #'
 #' @return
 #' @export
@@ -514,7 +523,7 @@ summarise_image <- function(img_file, normalise, invert, rotate, well_frame,
 #'
 #' @examples
 process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
-                            experiment_type="colony", normalise=F,
+                            experiment_type="colony", normalise=F, colony_only=T,
                             plate_type="6-well", num_wells=384, px_per_mm=NA,
                             tl_corner=NA, well_ratio=NA, deg_rotation=NA,
                             in_parallel=FALSE, blur = NA, img_settings_list) {
@@ -586,7 +595,8 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
 
       this_frame <- summarise_image(img_file, normalise, invert, rotate,
                                     well_frame, img_idx, img_settings_df,
-                                    circ_stencil, blur, scale_properties)
+                                    circ_stencil, blur, scale_properties,
+                                    colony_only)
 
       all_data <- rbind(all_data, this_frame)
     }
@@ -616,7 +626,8 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
                                                                  img_settings_df,
                                                                  circ_stencil,
                                                                  blur,
-                                                                 scale_properties)
+                                                                 scale_properties,
+                                                                 colony_only)
                                  }
   }
 

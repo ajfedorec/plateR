@@ -13,7 +13,9 @@ summarise_image(
   img_idx,
   img_settings_df,
   circ_stencil,
-  blur
+  blur,
+  scale_properties,
+  colony_only
 )
 }
 \arguments{

@@ -9,6 +9,7 @@ get_scale_and_location(
   num_wells,
   experiment_type,
   plate_type,
+  deg_rotation,
   well_ratio
 )
 }
