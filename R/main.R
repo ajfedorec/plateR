@@ -205,14 +205,17 @@ make_well_frame <- function(pp, px_per_mm, tl_corner) {
 #' @return
 #'
 #' @examples
-draw_wells <- function(plate_img, pp, px_per_mm, tl_corner, well_ratio) {
+draw_wells <- function(plate_img, pp, px_per_mm, tl_corner, deg_rotation,
+                       well_ratio) {
   d <- (pp$inter_well_space * px_per_mm) * well_ratio / 2
 
   ## make table of all well locations in the image
   wells <- make_well_frame(pp, px_per_mm, tl_corner)
 
-  scale_factor <- 1 # get_img_scale_factor(plate_img)
-  imager::draw_circle(imager::imresize(plate_img, 1/scale_factor),
+  scale_factor <- 1 #get_img_scale_factor(plate_img)
+  imager::draw_circle(imager::imresize(imager::imrotate(plate_img,
+                                                        deg_rotation),
+                                       1/scale_factor),
                       x = wells$px_column / scale_factor,
                       y = wells$px_row / scale_factor,
                       radius = d / scale_factor,
@@ -237,6 +240,7 @@ interactive_scale_wells <- function(plate_img, pp, scale_properties) {
       wasd keys will move the grid faster\n
       page up and page down keys will grow and shrink the grid\n
       1 and 2 keys will shrink and grow the well size\n
+      q and e rotate the image\n
       Press Esc when you are finished\n")
   px_per_mm <- scale_properties$px_per_mm
   tl_corner <- scale_properties$tl_corner
@@ -244,6 +248,11 @@ interactive_scale_wells <- function(plate_img, pp, scale_properties) {
     well_ratio <- 0.5
   } else {
     well_ratio <- scale_properties$well_ratio
+  }
+  if(is.na(scale_properties$deg_rotation)){
+    deg_rotation <- 0
+  } else {
+    deg_rotation <- scale_properties$deg_rotation
   }
 
   f <- function(state) {
@@ -290,14 +299,23 @@ interactive_scale_wells <- function(plate_img, pp, scale_properties) {
       well_ratio <<- well_ratio - 0.02
       print(paste("well_ratio: ", well_ratio))
     }
+    if (state$key == "q") {
+      deg_rotation <<- deg_rotation - 0.1
+      print(paste("deg_rotation: ", deg_rotation))
+    }
+    if (state$key == "e") {
+      deg_rotation <<- deg_rotation + 0.1
+      print(paste("deg_rotation: ", deg_rotation))
+    }
 
-    draw_wells(plate_img, pp, px_per_mm, tl_corner, well_ratio)
+    draw_wells(plate_img, pp, px_per_mm, tl_corner, deg_rotation, well_ratio)
   }
 
   imager::interact(f,
                    title = "Press Esc to accept or Space to exit")
 
-  return(list(px_per_mm = px_per_mm, tl_corner = tl_corner, well_ratio = well_ratio))
+  return(list(px_per_mm = px_per_mm, tl_corner = tl_corner,
+              deg_rotation = deg_rotation, well_ratio = well_ratio))
 }
 
 
@@ -312,12 +330,14 @@ interactive_scale_wells <- function(plate_img, pp, scale_properties) {
 #' @return
 #'
 #' @examples
-get_scale_and_location <- function(plate_img, num_wells, experiment_type, plate_type, well_ratio) {
+get_scale_and_location <- function(plate_img, num_wells, experiment_type,
+                                   plate_type, deg_rotation, well_ratio) {
   scale_success <- F
   pp <- get_well_properties(num_wells)
 
   scale_properties <- calculate_scale_wells(plate_img, pp, plate_type)
-  scale_properties <- c(scale_properties, well_ratio=well_ratio)
+  scale_properties <- c(scale_properties, deg_rotation=deg_rotation,
+                        well_ratio=well_ratio)
 
   well_img <- as.data.frame(plate_img, wide = "c") %>%
     dplyr::mutate(c.2 = .data$c.1, c.3 = .data$c.1) %>%
@@ -344,7 +364,8 @@ get_scale_and_location <- function(plate_img, num_wells, experiment_type, plate_
 #' @return
 #'
 #' @examples
-get_scale_or_location <- function(plate_img, num_wells, px_per_mm, tl_corner, well_ratio) {
+get_scale_or_location <- function(plate_img, num_wells, px_per_mm, tl_corner,
+                                  deg_rotation, well_ratio) {
   pp <- get_well_properties(num_wells)
 
   if(is.na(px_per_mm)){
@@ -356,7 +377,11 @@ get_scale_or_location <- function(plate_img, num_wells, px_per_mm, tl_corner, we
   if(is.na(well_ratio)){
     well_ratio <- 0.5
   }
-  scale_properties <- list(px_per_mm = px_per_mm, tl_corner = tl_corner, well_ratio = well_ratio)
+  if(is.na(deg_rotation)){
+    deg_rotation <- 0
+  }
+  scale_properties <- list(px_per_mm = px_per_mm, tl_corner = tl_corner,
+                           deg_rotation = deg_rotation, well_ratio = well_ratio)
 
   well_img <- as.data.frame(plate_img, wide = "c") %>%
     dplyr::mutate(c.2 = .data$c.1, c.3 = .data$c.1) %>%
@@ -403,8 +428,9 @@ get_img_settings <- function(img_idx, img_settings_df){
 #' @return
 #'
 #' @examples
-summarise_image <- function(img_file, normalise, invert, rotate, well_frame, img_idx,
-                            img_settings_df, circ_stencil, blur) {
+summarise_image <- function(img_file, normalise, invert, rotate, well_frame,
+                            img_idx, img_settings_df, circ_stencil, blur,
+                            scale_properties) {
   img <- imager::load.image(img_file)
   if(!is.na(blur)){
     img <- imager::isoblur(img, sigma = blur)
@@ -431,6 +457,9 @@ summarise_image <- function(img_file, normalise, invert, rotate, well_frame, img
   if (rotate) {
     img <- imager::imrotate(img, 180)
   }
+  if (scale_properties$deg_rotation != 0){
+    img <- imager::imrotate(img, scale_properties$deg_rotation)
+  }
 
   this_frame <- well_frame
   this_frame$id <- tools::file_path_sans_ext(basename(img_file))
@@ -449,11 +478,12 @@ summarise_image <- function(img_file, normalise, invert, rotate, well_frame, img
     dplyr::mutate(mean = mean(.data$value),
                   median = median(.data$value),
                   sd = sd(.data$value),
-                  # mad = stats::mad(.data$value),
                   max = max(.data$value),
                   min = min(.data$value),
                   n_saturated = sum(.data$value == 1)) %>%
     dplyr::select(-.data$value)
+
+  return(this_frame)
 }
 
 
@@ -484,10 +514,10 @@ summarise_image <- function(img_file, normalise, invert, rotate, well_frame, img
 #'
 #' @examples
 process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
-                            layout_csv, experiment_type="colony", normalise=F,
+                            experiment_type="colony", normalise=F,
                             plate_type="6-well", num_wells=384, px_per_mm=NA,
-                            tl_corner=NA, well_ratio=NA, in_parallel=FALSE,
-                            blur = NA, img_settings_list) {
+                            tl_corner=NA, well_ratio=NA, deg_rotation=NA,
+                            in_parallel=FALSE, blur = NA, img_settings_list) {
 
   img_settings_df <- as.data.frame(split(unlist(img_settings_list),
                                          names(unlist(img_settings_list))))
@@ -507,15 +537,18 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
                                                num_wells = num_wells,
                                                experiment_type = experiment_type,
                                                plate_type = plate_type,
+                                               deg_rotation = deg_rotation,
                                                well_ratio = well_ratio)
-  } else if(is.na(px_per_mm) | is.na(tl_corner) | is.na(well_ratio)){
+  } else if(is.na(px_per_mm) | is.na(tl_corner) | is.na(deg_rotation) | is.na(well_ratio)){
     scale_properties <- get_scale_or_location(plate_img = align_img,
                                               num_wells = num_wells,
                                               px_per_mm = px_per_mm,
                                               tl_corner = tl_corner,
+                                              deg_rotation = deg_rotation,
                                               well_ratio = well_ratio)
   } else {
-    scale_properties <- list(px_per_mm=px_per_mm, tl_corner=tl_corner, well_ratio=well_ratio)
+    scale_properties <- list(px_per_mm=px_per_mm, tl_corner=tl_corner,
+                             deg_rotation=deg_rotation, well_ratio=well_ratio)
   }
   print(scale_properties)
 
@@ -553,7 +586,7 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
 
       this_frame <- summarise_image(img_file, normalise, invert, rotate,
                                     well_frame, img_idx, img_settings_df,
-                                    circ_stencil, blur)
+                                    circ_stencil, blur, scale_properties)
 
       all_data <- rbind(all_data, this_frame)
     }
@@ -582,7 +615,8 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
                                                                  img_idx,
                                                                  img_settings_df,
                                                                  circ_stencil,
-                                                                 blur)
+                                                                 blur,
+                                                                 scale_properties)
                                  }
   }
 
