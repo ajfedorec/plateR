@@ -94,7 +94,7 @@ well_to_row_col <- function(well){
 #'
 #' @examples
 calculate_scale_wells <- function(plate_img, well_properties, plate_type){
-  scale_factor <- get_img_scale_factor(plate_img)
+  scale_factor <- 1 # get_img_scale_factor(plate_img)
   scaled_img <- imager::imresize(plate_img, 1/scale_factor)
 
   ## If 2 known well positions from the user
@@ -211,7 +211,7 @@ draw_wells <- function(plate_img, pp, px_per_mm, tl_corner, well_ratio) {
   ## make table of all well locations in the image
   wells <- make_well_frame(pp, px_per_mm, tl_corner)
 
-  scale_factor <- get_img_scale_factor(plate_img)
+  scale_factor <- 1 # get_img_scale_factor(plate_img)
   imager::draw_circle(imager::imresize(plate_img, 1/scale_factor),
                       x = wells$px_column / scale_factor,
                       y = wells$px_row / scale_factor,
