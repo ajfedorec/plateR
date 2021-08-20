@@ -14,7 +14,7 @@ get_scale_and_location(
 )
 }
 \arguments{
-\item{well_ratio}{}
+\item{deg_rotation}{}
 }
 \value{
 

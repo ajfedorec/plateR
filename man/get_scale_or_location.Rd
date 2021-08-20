@@ -14,7 +14,7 @@ get_scale_or_location(
 )
 }
 \arguments{
-\item{num_wells}{}
+\item{deg_rotation}{}
 }
 \value{
 

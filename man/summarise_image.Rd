@@ -19,7 +19,7 @@ summarise_image(
 )
 }
 \arguments{
-\item{blur}{}
+\item{colony_only}{}
 }
 \value{
 

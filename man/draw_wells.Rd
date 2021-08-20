@@ -7,7 +7,7 @@
 draw_wells(plate_img, pp, px_per_mm, tl_corner, deg_rotation, well_ratio)
 }
 \arguments{
-\item{well_ratio}{}
+\item{deg_rotation}{}
 }
 \value{
 

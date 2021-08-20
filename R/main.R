@@ -22,7 +22,7 @@ invert_image <- function(img){
 #' @return
 #'
 #' @examples
-get_well_properties <- function(num_wells) {
+get_plate_properties <- function(num_wells) {
   ## SBS PLATE PROPERTIES
   sbs_dims <- c(127.76, 85.48)
   if (num_wells == 96) {
@@ -201,6 +201,7 @@ make_well_frame <- function(pp, px_per_mm, tl_corner) {
 #' @param px_per_mm
 #' @param tl_corner
 #' @param well_ratio
+#' @param deg_rotation
 #'
 #' @return
 #'
@@ -217,9 +218,9 @@ draw_wells <- function(plate_img, pp, px_per_mm, tl_corner, deg_rotation,
     imager::draw_circle(
       imager::imrotate(plate_img,
                        deg_rotation),
-      x = wells$px_column / scale_factor,
-      y = wells$px_row / scale_factor,
-      radius = d / scale_factor,
+      x = wells$px_column,
+      y = wells$px_row,
+      radius = d,
       color = "red",
       filled = T,
       opacity = 0.3),
@@ -286,11 +287,11 @@ interactive_scale_wells <- function(plate_img, pp, scale_properties) {
       tl_corner <<- c(tl_corner[1], tl_corner[2] + 10)
     }
     if (state$key == "pageup") {
-      px_per_mm <<- px_per_mm + min(px_per_mm * 0.01, 0.1)
+      px_per_mm <<- px_per_mm + min(px_per_mm * 0.01, 0.05)
       print(paste("px_per_mm: ", px_per_mm))
     }
     if (state$key == "pagedown") {
-      px_per_mm <<- px_per_mm - min(px_per_mm * 0.01, 0.1)
+      px_per_mm <<- px_per_mm - min(px_per_mm * 0.01, 0.05)
       print(paste("px_per_mm: ", px_per_mm))
     }
     if (state$key == "2") {
@@ -328,6 +329,7 @@ interactive_scale_wells <- function(plate_img, pp, scale_properties) {
 #' @param experiment_type
 #' @param plate_type
 #' @param well_ratio
+#' @param deg_rotation
 #'
 #' @return
 #'
@@ -335,7 +337,7 @@ interactive_scale_wells <- function(plate_img, pp, scale_properties) {
 get_scale_and_location <- function(plate_img, num_wells, experiment_type,
                                    plate_type, deg_rotation, well_ratio) {
   scale_success <- F
-  pp <- get_well_properties(num_wells)
+  pp <- get_plate_properties(num_wells)
 
   scale_properties <- calculate_scale_wells(plate_img, pp, plate_type)
   scale_properties <- c(scale_properties, deg_rotation=deg_rotation,
@@ -362,13 +364,14 @@ get_scale_and_location <- function(plate_img, num_wells, experiment_type,
 #' @param tl_corner
 #' @param well_ratio
 #' @param num_wells
+#' @param deg_rotation
 #'
 #' @return
 #'
 #' @examples
 get_scale_or_location <- function(plate_img, num_wells, px_per_mm, tl_corner,
                                   deg_rotation, well_ratio) {
-  pp <- get_well_properties(num_wells)
+  pp <- get_plate_properties(num_wells)
 
   if(is.na(px_per_mm)){
     px_per_mm <- 15
@@ -426,6 +429,8 @@ get_img_settings <- function(img_idx, img_settings_df){
 #' @param rotate
 #' @param normalise
 #' @param blur
+#' @param scale_properties
+#' @param colony_only
 #'
 #' @return
 #'
@@ -563,7 +568,7 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
   }
   print(scale_properties)
 
-  pp <- get_well_properties(num_wells)
+  pp <- get_plate_properties(num_wells)
   print("Extracted microtitre plate properties")
 
   well_frame <- make_well_frame(pp = pp,
