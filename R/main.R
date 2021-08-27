@@ -533,7 +533,33 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
                             experiment_type="colony", normalise=F, colony_only=T,
                             plate_type="6-well", num_wells=384, px_per_mm=NA,
                             tl_corner=NA, well_ratio=NA, deg_rotation=NA,
-                            in_parallel=FALSE, blur = NA, img_settings_list) {
+                            in_parallel=FALSE, blur = NA, img_settings_list,
+                            log_file=NA) {
+
+  # Extract arguments from given log file -----------------------------------
+
+  if(!is.na(log_file)){
+    log_arguments <- read.table(log_file, header = T, sep = ":", quote = "")
+    dir_path <- log_arguments$dir_path
+    align_filename <- log_arguments$align_filename
+    invert <- log_arguments$invert
+    rotate <- log_arguments$rotate
+    experiment_type <- log_arguments$experiment_type
+    normalise <- log_arguments$normalise
+    colony_only <- log_arguments$colony_only
+    plate_type <- log_arguments$plate_type
+    num_wells <- log_arguments$num_wells
+    px_per_mm <- log_arguments$px_per_mm
+    tl_corner <- eval(parse(text = log_arguments$tl_corner))
+    well_ratio <- log_arguments$well_ratio
+    deg_rotation <- log_arguments$deg_rotation
+    in_parallel <- log_arguments$in_parallel
+    blur  <- log_arguments$ blur
+    img_settings_list  <- eval(parse(text = log_arguments$img_settings_list))
+  }
+
+
+  # convert img_setting_list to a data.frame --------------------------------
 
   img_settings_df <- as.data.frame(split(unlist(img_settings_list),
                                          names(unlist(img_settings_list))))
@@ -643,4 +669,24 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
                    file.path(dir_path, paste(format(Sys.time(), "%y%m%d_%H%M_"), "data_summary.csv", sep = "")),
                    row.names = F)
 
+  # write plate properties to log file
+  log <- data.frame(dir_path=dir_path,
+                    align_filename=align_filename,
+                    invert=invert,
+                    rotate=rotate,
+                    experiment_type=experiment_type,
+                    normalise=normalise,
+                    colony_only=colony_only,
+                    plate_type=plate_type,
+                    num_wells=num_wells,
+                    px_per_mm=scale_properties$px_per_mm,
+                    tl_corner=I(list(scale_properties$tl_corner)),
+                    well_ratio=scale_properties$well_ratio,
+                    deg_rotation=scale_properties$deg_rotation,
+                    in_parallel=in_parallel,
+                    blur = blur,
+                    img_settings_list = I(list(img_settings_list)))
+
+  utils::write.table(log, quote = F, sep = ":", row.names = F,
+                   file.path(dir_path, paste(format(Sys.time(), "%y%m%d_%H%M_"), "log.txt", sep = "")))
 }

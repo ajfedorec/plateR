@@ -20,7 +20,8 @@ process_img_dir(
   deg_rotation = NA,
   in_parallel = FALSE,
   blur = NA,
-  img_settings_list
+  img_settings_list,
+  log_file = NA
 )
 }
 \arguments{
