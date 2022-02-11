@@ -15,11 +15,11 @@ summarise_image(
   circ_stencil,
   blur,
   scale_properties,
-  colony_only
+  stencil_proportion
 )
 }
 \arguments{
-\item{colony_only}{}
+\item{stencil_proportion}{}
 }
 \value{
 

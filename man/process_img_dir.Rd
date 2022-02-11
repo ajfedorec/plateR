@@ -11,7 +11,7 @@ process_img_dir(
   rotate = F,
   experiment_type = "colony",
   normalise = F,
-  colony_only = T,
+  stencil_proportion = 1,
   plate_type = "6-well",
   num_wells = 384,
   px_per_mm = NA,
@@ -37,26 +37,25 @@ process_img_dir(
 
 \item{normalise}{Attempts to remove background. Negates pixel values in the first iteration of images, from all images.}
 
-\item{colony_only}{Boolean flag. If true, select only the 25% brightest (for blue panel) or darkest (for red panel) pixels.}
+\item{stencil_proportion}{Proportion of pixels covered by stencil to take values from. Takes brightest for blue panel or darkest for red panel.}
 
 \item{plate_type}{"6-well" or "1-well"}
 
 \item{num_wells}{Plate size used for output positions: 96, 384 or 1536}
 
-\item{px_per_mm}{If you already know the `px_per_mm` value (from previous alignment)}
+\item{px_per_mm}{If you already know the "px_per_mm" value (from previous alignment)}
 
-\item{tl_corner}{If you already know the `tl_corner` values (from previous alignment)}
+\item{tl_corner}{If you already know the "tl_corner" values (from previous alignment)}
 
 \item{well_ratio}{Proportion of space taken up by each "well". Can be scaled interactively.}
 
-\item{deg_rotation}{If you already know the `deg_rotation` values (from previous alignment)}
+\item{deg_rotation}{If you already know the "deg_rotation" values (from previous alignment)}
 
 \item{in_parallel}{process images in parallel (only available for R >= 4.0)}
 
 \item{blur}{Apply a Gaussian filter to blur the image. If NA, no blur is applied. If numeric, the value is used as the sigma for the Gaussian filter.}
 
-\item{img_settings_list}{a list of named vectors with meta-data for images in the order they were taken i.e.
-`img_settings_list = list(c(panel="blue", exposure=20000, intensity=1),c(panel="red", exposure=4000, intensity=0.7))`}
+\item{img_settings_list}{a list of named vectors with meta-data for images in the order they were taken i.e."img_settings_list = list(c(panel="blue", exposure=20000, intensity=1),c(panel="red", exposure=4000, intensity=0.7))"}
 }
 \value{
 

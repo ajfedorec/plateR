@@ -430,14 +430,14 @@ get_img_settings <- function(img_idx, img_settings_df){
 #' @param normalise
 #' @param blur
 #' @param scale_properties
-#' @param colony_only
+#' @param stencil_proportion
 #'
 #' @return
 #'
 #' @examples
 summarise_image <- function(img_file, normalise, invert, rotate, well_frame,
                             img_idx, img_settings_df, circ_stencil, blur,
-                            scale_properties, colony_only) {
+                            scale_properties, stencil_proportion) {
   img <- imager::load.image(img_file)
   if(!is.na(blur)){
     img <- imager::isoblur(img, sigma = blur)
@@ -468,12 +468,13 @@ summarise_image <- function(img_file, normalise, invert, rotate, well_frame,
     img <- imager::imrotate(img, scale_properties$deg_rotation)
   }
 
+  # build dataframe for image
   this_frame <- well_frame
   this_frame$id <- tools::file_path_sans_ext(basename(img_file))
-
   img_settings <- get_img_settings(img_idx, img_settings_df)
   this_frame <- cbind(this_frame, img_settings)
 
+  # extract value of pixel at center of each stencil and all pixels in stencil
   this_frame <- this_frame %>%
     dplyr::rowwise() %>%
     dplyr::mutate(point_value = imager::at(img,
@@ -483,12 +484,14 @@ summarise_image <- function(img_file, normalise, invert, rotate, well_frame,
                                                    x = .data$px_column,
                                                    y = .data$px_row)))
 
-  if(colony_only){
-    this_frame <- this_frame %>%
-      dplyr::mutate(value = dplyr::if_else(img_settings$panel == "blue",
-                                           list(sort(.data$value, decreasing = T)[1:(length(.data$value)/4)]),
-                                           list(sort(.data$value, decreasing = F)[1:(length(.data$value)/4)])))
-  }
+  # select only subset of pixels in each stencil
+  # n.b. this is an effort to exclude non-colony pixels
+  this_frame <- this_frame %>%
+    dplyr::mutate(value = dplyr::if_else(img_settings$panel == "blue",
+                                         list(sort(.data$value, decreasing = T)[1:(length(.data$value) * stencil_proportion)]),
+                                         list(sort(.data$value, decreasing = F)[1:(length(.data$value) * stencil_proportion)])))
+
+  # summarise stencil pixels
   this_frame <- this_frame %>%
     dplyr::mutate(mean = mean(.data$value),
                   median = median(.data$value),
@@ -510,17 +513,16 @@ summarise_image <- function(img_file, normalise, invert, rotate, well_frame,
 #' @param experiment_type "colony" or "lawn"
 #' @param plate_type "6-well" or "1-well"
 #' @param num_wells Plate size used for output positions: 96, 384 or 1536
-#' @param px_per_mm If you already know the `px_per_mm` value (from previous alignment)
-#' @param tl_corner If you already know the `tl_corner` values (from previous alignment)
+#' @param px_per_mm If you already know the "px_per_mm" value (from previous alignment)
+#' @param tl_corner If you already know the "tl_corner" values (from previous alignment)
 #' @param well_ratio Proportion of space taken up by each "well". Can be scaled interactively.
 #' @param in_parallel process images in parallel (only available for R >= 4.0)
-#' @param img_settings_list a list of named vectors with meta-data for images in the order they were taken i.e.
-#' `img_settings_list = list(c(panel="blue", exposure=20000, intensity=1),c(panel="red", exposure=4000, intensity=0.7))`
+#' @param img_settings_list a list of named vectors with meta-data for images in the order they were taken i.e."img_settings_list = list(c(panel="blue", exposure=20000, intensity=1),c(panel="red", exposure=4000, intensity=0.7))"
 #' @param rotate Boolean flag. Set to {TRUE} if the images are upside-down i.e. row A on bottom of image
 #' @param normalise Attempts to remove background. Negates pixel values in the first iteration of images, from all images.
 #' @param blur Apply a Gaussian filter to blur the image. If NA, no blur is applied. If numeric, the value is used as the sigma for the Gaussian filter.
-#' @param colony_only Boolean flag. If true, select only the 25% brightest (for blue panel) or darkest (for red panel) pixels.
-#' @param deg_rotation If you already know the `deg_rotation` values (from previous alignment)
+#' @param stencil_proportion Proportion of pixels covered by stencil to take values from. Takes brightest for blue panel or darkest for red panel.
+#' @param deg_rotation If you already know the "deg_rotation" values (from previous alignment)
 #'
 #' @return
 #' @export
@@ -530,7 +532,7 @@ summarise_image <- function(img_file, normalise, invert, rotate, well_frame,
 #'
 #' @examples
 process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
-                            experiment_type="colony", normalise=F, colony_only=T,
+                            experiment_type="colony", normalise=F, stencil_proportion=1,
                             plate_type="6-well", num_wells=384, px_per_mm=NA,
                             tl_corner=NA, well_ratio=NA, deg_rotation=NA,
                             in_parallel=FALSE, blur = NA, img_settings_list,
@@ -546,7 +548,7 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
     rotate <- log_arguments$rotate
     experiment_type <- log_arguments$experiment_type
     normalise <- log_arguments$normalise
-    colony_only <- log_arguments$colony_only
+    stencil_proportion <- log_arguments$stencil_proportion
     plate_type <- log_arguments$plate_type
     num_wells <- log_arguments$num_wells
     px_per_mm <- log_arguments$px_per_mm
@@ -629,7 +631,7 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
       this_frame <- summarise_image(img_file, normalise, invert, rotate,
                                     well_frame, img_idx, img_settings_df,
                                     circ_stencil, blur, scale_properties,
-                                    colony_only)
+                                    stencil_proportion)
 
       all_data <- rbind(all_data, this_frame)
     }
@@ -660,7 +662,7 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
                                                                  circ_stencil,
                                                                  blur,
                                                                  scale_properties,
-                                                                 colony_only)
+                                                                 stencil_proportion)
                                  }
   }
 
@@ -676,7 +678,7 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
                     rotate=rotate,
                     experiment_type=experiment_type,
                     normalise=normalise,
-                    colony_only=colony_only,
+                    stencil_proportion=stencil_proportion,
                     plate_type=plate_type,
                     num_wells=num_wells,
                     px_per_mm=scale_properties$px_per_mm,
@@ -688,5 +690,5 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
                     img_settings_list = I(list(img_settings_list)))
 
   utils::write.table(log, quote = F, sep = ":", row.names = F,
-                   file.path(dir_path, paste(format(Sys.time(), "%y%m%d_%H%M_"), "log.txt", sep = "")))
+                     file.path(dir_path, paste(format(Sys.time(), "%y%m%d_%H%M_"), "log.txt", sep = "")))
 }
