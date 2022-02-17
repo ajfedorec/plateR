@@ -12,6 +12,7 @@ process_img_dir(
   experiment_type = "colony",
   normalise = F,
   stencil_proportion = 1,
+  proportion_centered = T,
   plate_type = "6-well",
   num_wells = 384,
   px_per_mm = NA,
@@ -37,7 +38,9 @@ process_img_dir(
 
 \item{normalise}{Attempts to remove background. Negates pixel values in the first iteration of images, from all images.}
 
-\item{stencil_proportion}{Proportion of pixels covered by stencil to take values from. Takes brightest for blue panel or darkest for red panel.}
+\item{stencil_proportion}{Proportion of pixels covered by stencil to take values from.}
+
+\item{proportion_centered}{Boolean flag. If true discards the top and bottom "stencil_proportion/2" brightest pixels. If false, takes "stencil_proportion" brightest for blue panel or darkest for red panel.}
 
 \item{plate_type}{"6-well" or "1-well"}
 

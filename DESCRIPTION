@@ -18,5 +18,7 @@ Imports:
   progressr,
   future,
   foreach,
-  doFuture
+  doFuture,
+  stringr,
+  tidyr
 RoxygenNote: 7.1.2

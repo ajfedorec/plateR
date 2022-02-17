@@ -15,7 +15,8 @@ summarise_image(
   circ_stencil,
   blur,
   scale_properties,
-  stencil_proportion
+  stencil_proportion,
+  proportion_centered
 )
 }
 \arguments{

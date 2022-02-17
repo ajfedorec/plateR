@@ -5,7 +5,6 @@
 #'
 #' @return
 #'
-#' @examples
 invert_image <- function(img){
   map_invert <- function(x,y) list(x=x, y=(y-imager::height(img))*-1)
 
@@ -21,7 +20,6 @@ invert_image <- function(img){
 #'
 #' @return
 #'
-#' @examples
 get_plate_properties <- function(num_wells) {
   ## SBS PLATE PROPERTIES
   sbs_dims <- c(127.76, 85.48)
@@ -50,7 +48,6 @@ get_plate_properties <- function(num_wells) {
 #'
 #' @return
 #'
-#' @examples
 get_img_scale_factor <- function(img){
   img_dims <- dim(img)
   max_dim <- max(img_dims)
@@ -67,7 +64,6 @@ get_img_scale_factor <- function(img){
 #'
 #' @return
 #'
-#' @examples
 well_to_row_col <- function(well){
   row_Ls <- grep("[a-zA-Z]", unlist(strsplit(well, "")), value = T)
   num_letters <- length(row_Ls)
@@ -92,7 +88,6 @@ well_to_row_col <- function(well){
 #'
 #' @return
 #'
-#' @examples
 calculate_scale_wells <- function(plate_img, well_properties, plate_type){
   scale_factor <- get_img_scale_factor(plate_img)
   scaled_img <- imager::imresize(plate_img, 1/scale_factor)
@@ -333,7 +328,6 @@ interactive_scale_wells <- function(plate_img, pp, scale_properties) {
 #'
 #' @return
 #'
-#' @examples
 get_scale_and_location <- function(plate_img, num_wells, experiment_type,
                                    plate_type, deg_rotation, well_ratio) {
   scale_success <- F
@@ -437,7 +431,7 @@ get_img_settings <- function(img_idx, img_settings_df){
 #' @examples
 summarise_image <- function(img_file, normalise, invert, rotate, well_frame,
                             img_idx, img_settings_df, circ_stencil, blur,
-                            scale_properties, stencil_proportion) {
+                            scale_properties, stencil_proportion, proportion_centered) {
   img <- imager::load.image(img_file)
   if(!is.na(blur)){
     img <- imager::isoblur(img, sigma = blur)
@@ -486,16 +480,21 @@ summarise_image <- function(img_file, normalise, invert, rotate, well_frame,
 
   # select only subset of pixels in each stencil
   # n.b. this is an effort to exclude non-colony pixels
-  this_frame <- this_frame %>%
-    dplyr::mutate(value = dplyr::if_else(img_settings$panel == "blue",
-                                         list(sort(.data$value, decreasing = T)[1:(length(.data$value) * stencil_proportion)]),
-                                         list(sort(.data$value, decreasing = F)[1:(length(.data$value) * stencil_proportion)])))
+  if(proportion_centered){
+    this_frame <- this_frame %>%
+      dplyr::mutate(value = list(sort(.data$value, decreasing = F)[((length(.data$value) * (1-stencil_proportion)/2) + 1):(length(.data$value) * (1+stencil_proportion)/2)]))
+  } else {
+    this_frame <- this_frame %>%
+      dplyr::mutate(value = dplyr::if_else(img_settings$panel == "blue",
+                                           list(sort(.data$value, decreasing = T)[1:(length(.data$value) * stencil_proportion)]),
+                                           list(sort(.data$value, decreasing = F)[1:(length(.data$value) * stencil_proportion)])))
+  }
 
   # summarise stencil pixels
   this_frame <- this_frame %>%
     dplyr::mutate(mean = mean(.data$value),
-                  median = median(.data$value),
-                  sd = sd(.data$value),
+                  median = stats::median(.data$value),
+                  sd = stats::sd(.data$value),
                   max = max(.data$value),
                   min = min(.data$value),
                   n_saturated = sum(.data$value == 1)) %>%
@@ -521,7 +520,8 @@ summarise_image <- function(img_file, normalise, invert, rotate, well_frame,
 #' @param rotate Boolean flag. Set to {TRUE} if the images are upside-down i.e. row A on bottom of image
 #' @param normalise Attempts to remove background. Negates pixel values in the first iteration of images, from all images.
 #' @param blur Apply a Gaussian filter to blur the image. If NA, no blur is applied. If numeric, the value is used as the sigma for the Gaussian filter.
-#' @param stencil_proportion Proportion of pixels covered by stencil to take values from. Takes brightest for blue panel or darkest for red panel.
+#' @param stencil_proportion Proportion of pixels covered by stencil to take values from.
+#' @param proportion_centered Boolean flag. If true discards the top and bottom "stencil_proportion/2" brightest pixels. If false, takes "stencil_proportion" brightest for blue panel or darkest for red panel.
 #' @param deg_rotation If you already know the "deg_rotation" values (from previous alignment)
 #'
 #' @return
@@ -533,6 +533,7 @@ summarise_image <- function(img_file, normalise, invert, rotate, well_frame,
 #' @examples
 process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
                             experiment_type="colony", normalise=F, stencil_proportion=1,
+                            proportion_centered=T,
                             plate_type="6-well", num_wells=384, px_per_mm=NA,
                             tl_corner=NA, well_ratio=NA, deg_rotation=NA,
                             in_parallel=FALSE, blur = NA, img_settings_list,
@@ -541,7 +542,7 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
   # Extract arguments from given log file -----------------------------------
 
   if(!is.na(log_file)){
-    log_arguments <- read.table(log_file, header = T, sep = ":", quote = "")
+    log_arguments <- utils::read.table(log_file, header = T, sep = ":", quote = "")
     dir_path <- log_arguments$dir_path
     align_filename <- log_arguments$align_filename
     invert <- log_arguments$invert
@@ -549,6 +550,7 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
     experiment_type <- log_arguments$experiment_type
     normalise <- log_arguments$normalise
     stencil_proportion <- log_arguments$stencil_proportion
+    proportion_centered <- log_arguments$proportion_centered
     plate_type <- log_arguments$plate_type
     num_wells <- log_arguments$num_wells
     px_per_mm <- log_arguments$px_per_mm
@@ -628,10 +630,18 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
 
       utils::setTxtProgressBar(pb, img_idx)
 
-      this_frame <- summarise_image(img_file, normalise, invert, rotate,
-                                    well_frame, img_idx, img_settings_df,
-                                    circ_stencil, blur, scale_properties,
-                                    stencil_proportion)
+      this_frame <- summarise_image(img_file = img_file,
+                                    normalise = normalise,
+                                    invert = invert,
+                                    rotate = rotate,
+                                    well_frame = well_frame,
+                                    img_idx = img_idx,
+                                    img_settings_df = img_settings_df,
+                                    circ_stencil = circ_stencil,
+                                    blur = blur,
+                                    scale_properties = scale_properties,
+                                    stencil_proportion = stencil_proportion,
+                                    proportion_centered = proportion_centered)
 
       all_data <- rbind(all_data, this_frame)
     }
@@ -652,17 +662,18 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
 
                                    img_idx <- which(img_file == img_files)
 
-                                   this_frame <- summarise_image(img_file,
-                                                                 normalise,
-                                                                 invert,
-                                                                 rotate,
-                                                                 well_frame,
-                                                                 img_idx,
-                                                                 img_settings_df,
-                                                                 circ_stencil,
-                                                                 blur,
-                                                                 scale_properties,
-                                                                 stencil_proportion)
+                                   this_frame <- summarise_image(img_file = img_file,
+                                                                 normalise = normalise,
+                                                                 invert = invert,
+                                                                 rotate = rotate,
+                                                                 well_frame = well_frame,
+                                                                 img_idx = img_idx,
+                                                                 img_settings_df = img_settings_df,
+                                                                 circ_stencil = circ_stencil,
+                                                                 blur = blur,
+                                                                 scale_properties = scale_properties,
+                                                                 stencil_proportion = stencil_proportion,
+                                                                 proportion_centered = proportion_centered)
                                  }
   }
 
@@ -679,6 +690,7 @@ process_img_dir <- function(dir_path, align_filename, invert=F, rotate=F,
                     experiment_type=experiment_type,
                     normalise=normalise,
                     stencil_proportion=stencil_proportion,
+                    proportion_centered=proportion_centered,
                     plate_type=plate_type,
                     num_wells=num_wells,
                     px_per_mm=scale_properties$px_per_mm,
