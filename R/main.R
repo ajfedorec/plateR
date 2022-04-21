@@ -498,7 +498,7 @@ summarise_image <- function(img_file, normalise, invert, rotate, well_frame,
                   max = max(.data$value),
                   min = min(.data$value),
                   n_saturated = sum(.data$value == 1),
-                  prop_saturated = sum(.data$value == 1) / n()) %>%
+                  prop_saturated = sum(.data$value == 1) / dplyr::n()) %>%
     dplyr::select(-.data$value)
 
   return(this_frame)
